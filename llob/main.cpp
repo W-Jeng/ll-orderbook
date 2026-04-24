@@ -1,6 +1,6 @@
 #include <fmt/format.h>
-#include <llob/types.h>
-#include <llob/order.h>
+#include <llob/Types.h>
+#include <llob/Order.h>
 
 int main() {
   fmt::println("Hello world!");

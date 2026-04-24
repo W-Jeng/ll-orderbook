@@ -1,10 +1,10 @@
-#include "llob/order_book.h"
+#include "llob/OrderBook.h"
 
 namespace llob {
 
 OrderBook::OrderBook(InstrumentId instrument_id) : instrument_id_(instrument_id) {}
 
-OrderBook::Process(const Order* order) {
+OrderBook::process(const Order* order) {
   switch (order->type) {
     case OrderType::kNew:
       ProcessNewOrder(order);
@@ -16,11 +16,11 @@ OrderBook::Process(const Order* order) {
   }
 }
 
-OrderBook::ProcessNewOrder(const Order* order) {
+OrderBook::processNewOrder(const Order* order) {
   
 }
 
-OrderBook::ProcessNewOrder(const Order* order) {
+OrderBook::processNewOrder(const Order* order) {
 
 }
 
