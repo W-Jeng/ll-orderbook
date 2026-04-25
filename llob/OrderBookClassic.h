@@ -6,7 +6,7 @@
 
 namespace llob {
 
-class OrderBook final : public IOrderBook {
+class OrderBookClassic final : public IOrderBook {
 public:
   OrderBook(InstrumentId)
   void process(const Order*);

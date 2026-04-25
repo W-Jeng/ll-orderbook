@@ -4,13 +4,13 @@
 namespace llob {
 
 enum class Side {
-  kBuy,
-  kSell
+  Buy,
+  Sell
 };
 
 enum class OrderType {
-  kNew,
-  kCancel
+  New,
+  Cancel
 };
 
 struct OrderRequest {
@@ -28,6 +28,7 @@ struct Order {
   Price price;
   Quantity qty;
   uint32_t book_slot;
+  Quantity filled = 0;
 };
 
 }; //end of namespace llob
