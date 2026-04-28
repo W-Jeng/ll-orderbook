@@ -3,32 +3,38 @@
 
 namespace llob {
 
-enum class Side {
+enum class Side : uint8_t {
   Buy,
   Sell
 };
 
-enum class OrderType {
+enum class OrderState : uint8_t {
   New,
-  Cancel
-};
+  PartiallyFilled,
+  FullyFilled,
+  Cancelled
+}
 
-struct OrderRequest {
-  OrderType type;
+struct NewOrderRequest {
   InstrumentId instrument_id;
   Side side;
   Price price;
   Quantity qty;
 };
+
+struct OrderCancelRequest {
+  OrderId id; 
+}
 
 struct Order {
-  OrderType type;
+  OrderState state;
+  OrderId id;
   InstrumentId instrument_id;
   Side side;
   Price price;
   Quantity qty;
-  uint32_t book_slot;
   Quantity filled = 0;
+  uint16_t book_slot;
 };
 
 }; //end of namespace llob
