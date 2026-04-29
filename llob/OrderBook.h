@@ -46,7 +46,7 @@ private:
         "Order pool exhausted at instrument_id="
         +std::to_string(instrument_id_));
     o->set_from(nor);
-    order_indexer_[o->allocated_id] = o;
+    order_indexer_[o->id] = o;
     auto& p_level = (o->side == Side::Buy) ? bids_ : asks_;
     p_level[o->price].add(o);
   }

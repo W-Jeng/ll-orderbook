@@ -16,15 +16,18 @@ public:
         free_list_.push_back(i);
   }
 
+  PoolAllocator(PoolAllocator&&)=delete;
+  PoolAllocator& operator=(PoolAllocator&&)=delete;
+
   [[nodiscard]] T* allocate() noexcept {
-    if (free_list.empty()) return nullptr;
+    if (free_list_.empty()) return nullptr;
     size_t idx = free_list_.back();
     free_list_.pop_back();
     return &storage_[idx];
   }
 
   void release(T* p) noexcept {
-    assert(p != nullptr)
+    assert(p != nullptr);
     const T* base = storage_->data();
     assert(p >= base && p < base+N);
     const std::size_t idx = static_cast<std::size_t>(p-base);
