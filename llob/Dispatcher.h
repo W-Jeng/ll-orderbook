@@ -5,8 +5,8 @@
 namespace llob {
 
 template<typename T>
-concept Dispatcher = requires(T d, OrderCommand cmd) {
-  { T.submit(cmd) } -> std::same_as<void>;
+concept Dispatcher = requires(T d, const OrderCommand& cmd) {
+  { d.submit(cmd) } -> std::same_as<void>;
 };
 
 template<typename BookT>
@@ -16,7 +16,10 @@ public:
     : registry_(registry) {}
 
   void submit(const OrderCommand& cmd) {
-    registry_.get(cmd.instrument_id).process(cmd);
+    auto instrument_id = cmd.type == CommandType::New 
+                           ? cmd.new_order_request.instrument_id 
+                           : cmd.order_cancel_request.instrument_id;
+    registry_.get(instrument_id).process(cmd);
   }
 
 private:

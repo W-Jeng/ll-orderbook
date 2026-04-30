@@ -20,7 +20,7 @@ struct NewOrderRequest {
   Side side;
   Price price;
   Quantity qty;
-  OrderId allocated_id; // let OrderEngine fill this
+  OrderId allocated_order_id; // let OrderEngine fill this
 
   NewOrderRequest(InstrumentId iid, Side s,
                   Price p, Quantity q)
@@ -28,11 +28,12 @@ struct NewOrderRequest {
     , side(s)
     , price(p)
     , qty(q)
-    , allocated_id(OrderId{}) { }
+    , allocated_order_id(OrderId{}) { }
 };
 
 struct OrderCancelRequest {
-  OrderId id; 
+  OrderId order_id; 
+  InstrumentId instrument_id;
 };
 
 struct Order {
@@ -57,7 +58,7 @@ struct Order {
 
   void set_from(const NewOrderRequest& nor) {
     state = OrderState::New;
-    id = nor.allocated_id;
+    id = nor.allocated_order_id;
     instrument_id = nor.instrument_id;
     side = nor.side;
     price = nor.price;

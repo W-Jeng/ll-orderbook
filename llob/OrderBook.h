@@ -52,7 +52,7 @@ private:
   }
 
   void processCancelOrder(const OrderCancelRequest& ocr) {
-    auto it = order_indexer_.find(ocr.id);
+    auto it = order_indexer_.find(ocr.order_id);
     if (it == order_indexer_.end()) return;
     auto* o = it -> second;
     auto& p_level = (o->side == Side::Buy) ? bids_ : asks_;

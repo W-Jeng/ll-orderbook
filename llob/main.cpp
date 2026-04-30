@@ -4,6 +4,7 @@
 #include "llob/PriceLevel.h"
 #include "llob/OrderBook.h"
 #include "llob/Dispatcher.h"
+#include "llob/OrderEngine.h"
 
 int main() {
   fmt::println("Hello world!");
