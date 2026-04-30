@@ -1,4 +1,6 @@
 #pragma once
+#include "llob/OrderCommand.h"
+#include "llob/BookRegistry.h"
 
 namespace llob {
 
@@ -18,7 +20,7 @@ public:
   }
 
 private:
-  BookRegistry<BoolT>& registry_;
+  BookRegistry<BookT>& registry_;
 };
 
 } // llob
