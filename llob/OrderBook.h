@@ -3,6 +3,7 @@
 #include <vector>
 #include <stdexcept>
 #include "llob/Types.h"
+#include "llob/Order.h"
 #include "llob/OrderCommand.h"
 #include "llob/PriceLevel.h"
 #include "llob/PoolAllocator.h"

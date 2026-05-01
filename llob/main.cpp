@@ -4,9 +4,11 @@
 #include "llob/PriceLevel.h"
 #include "llob/OrderBook.h"
 #include "llob/Dispatcher.h"
+#include "llob/BookRegistry.h"
 #include "llob/OrderEngine.h"
 
 int main() {
   fmt::println("Hello world!");
+  llob::BookRegistry<llob::ClassicOrderBook<llob::ClassicPriceLevel, 1024>> book_registry;
   return 0;
 }

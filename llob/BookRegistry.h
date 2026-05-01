@@ -1,5 +1,7 @@
 #pragma once
+#include <vector>
 #include <memory>
+#include "llob/Types.h"
 
 namespace llob {
 

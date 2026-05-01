@@ -1,6 +1,8 @@
 #pragma once
 #include <memory>
 #include <type_traits>
+#include <array>
+#include "llob/Order.h"
 
 namespace llob {
 
@@ -12,8 +14,13 @@ public:
       : storage_(std::make_unique<std::array<T,N>>())
   {
     free_list_.reserve(N);
-    for (std::size_t i = N-1; i >= 0; --i)
-        free_list_.push_back(i);
+    size_t i = N-1;
+    while (true) {
+      free_list_.push_back(i);
+      if (i == 0)
+          break;
+      --i;
+    }
   }
 
   PoolAllocator(PoolAllocator&&)=delete;
@@ -23,7 +30,7 @@ public:
     if (free_list_.empty()) return nullptr;
     size_t idx = free_list_.back();
     free_list_.pop_back();
-    return &storage_[idx];
+    return &(*storage_[idx]);
   }
 
   void release(T* p) noexcept {
