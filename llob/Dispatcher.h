@@ -9,10 +9,10 @@ concept Dispatcher = requires(T d, const OrderCommand& cmd) {
   { d.submit(cmd) } -> std::same_as<void>;
 };
 
-template<typename BookT>
+template<typename BookRegistryT>
 class InlineDispatcher {
 public:
-  explicit InlineDispatcher(BookRegistry<BookT>& registry)
+  explicit InlineDispatcher(BookRegistryT& registry)
     : registry_(registry) {}
 
   void submit(const OrderCommand& cmd) {
@@ -23,7 +23,7 @@ public:
   }
 
 private:
-  BookRegistry<BookT>& registry_;
+  BookRegistryT& registry_;
 };
 
 } // llob

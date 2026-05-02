@@ -9,6 +9,11 @@
 
 int main() {
   fmt::println("Hello world!");
-  llob::BookRegistry<llob::ClassicOrderBook<llob::ClassicPriceLevel, 1024>> book_registry;
+  using namespace llob;
+  using BookRegistryT = BookRegistry<ClassicOrderBook<ClassicPriceLevel, 1024>>;
+  BookRegistryT book_registry;
+  using InlineDispatcherT = InlineDispatcher<BookRegistryT>;
+  InlineDispatcherT d(book_registry); 
+  OrderEngine<InlineDispatcherT> order_engine(d);
   return 0;
 }
