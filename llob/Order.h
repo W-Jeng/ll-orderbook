@@ -74,7 +74,7 @@ struct Order {
     , filled(Quantity{})
     , book_slot(0) {}
 
-  void set_from(const NewOrderRequest& nor) {
+  void setFrom(const NewOrderRequest& nor) {
     state = OrderState::New;
     id = nor.allocated_order_id;
     instrument_id = nor.instrument_id;
@@ -82,6 +82,14 @@ struct Order {
     price = nor.price;
     qty = nor.qty;
     filled = 0;
+  }
+
+  void fillQty(Quantity fill_qty) {
+    filled += fill_qty;
+  }
+
+  bool isFullyFilled() const {
+    return qty == filled;
   }
 };
 

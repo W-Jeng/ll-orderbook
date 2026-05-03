@@ -22,9 +22,13 @@ int main() {
   OrderEngine<InlineDispatcherT> order_engine(d);
 
   // Creating order command to test
-  NewOrderRequest nor(0, Side::Buy, 100.0, 200);
-  OrderCommand cmd(std::move(nor));
-  order_engine.submit(cmd);
+  NewOrderRequest nor_buy(0, Side::Buy, 100.0, 200);
+  OrderCommand cmd_buy(std::move(nor_buy));
+  order_engine.submit(cmd_buy);
+
+  NewOrderRequest nor_sell(0, Side::Sell, 100.0, 100);
+  OrderCommand cmd_sell(std::move(nor_sell));
+  order_engine.submit(cmd_sell);
 
   return 0;
 }
