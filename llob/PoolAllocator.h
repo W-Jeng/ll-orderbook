@@ -2,6 +2,7 @@
 #include <memory>
 #include <type_traits>
 #include <array>
+#include <cassert>
 #include "llob/Order.h"
 
 namespace llob {
@@ -30,7 +31,7 @@ public:
     if (free_list_.empty()) return nullptr;
     size_t idx = free_list_.back();
     free_list_.pop_back();
-    return &(*storage_[idx]);
+    return &((*storage_)[idx]);
   }
 
   void release(T* p) noexcept {

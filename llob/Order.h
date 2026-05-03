@@ -1,5 +1,7 @@
 #pragma once
-#include <llob/Types.h>
+#include <string>
+#include <fmt/format.h>
+#include "llob/Types.h"
 
 namespace llob {
 
@@ -29,11 +31,27 @@ struct NewOrderRequest {
     , price(p)
     , qty(q)
     , allocated_order_id(OrderId{}) { }
+
+  inline std::string toString() const {
+    return fmt::format("NewOrderRequest(instrument_id={}, "
+        "side={}, price={}, qty={}, allocated_order_id={})",
+        instrument_id,
+        side == Side::Buy ? "Buy": "Sell",
+        price,
+        qty,
+        allocated_order_id);
+  } 
 };
 
 struct OrderCancelRequest {
   OrderId order_id; 
   InstrumentId instrument_id;
+
+  inline std::string toString() const {
+    return fmt::format("OrderCancelRequest(order_id={}, instrument_id={})",
+      order_id,
+      instrument_id);
+  }
 };
 
 struct Order {

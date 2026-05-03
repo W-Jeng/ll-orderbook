@@ -1,6 +1,7 @@
 #pragma once
 #include <map>
 #include <vector>
+#include <iostream>
 #include <stdexcept>
 #include "llob/Types.h"
 #include "llob/Order.h"
@@ -22,6 +23,7 @@ public:
       : instrument_id_(id) { }
 
   void process(const OrderCommand& command) {
+    std::cout << "Processing command: " << command.toString() << "\n";
     switch (command.type) {
       case CommandType::New:
         processNewOrder(command.new_order_request);
@@ -42,22 +44,37 @@ private:
 
   void processNewOrder(const NewOrderRequest& nor) {
     Order* o = order_pool_.allocate();
+
     if (!o) 
-      throw std::runtime_error(
-        "Order pool exhausted at instrument_id="
-        +std::to_string(instrument_id_));
+      throw std::runtime_error("Order pool exhausted! Last nor="+nor.toString());
+
     o->set_from(nor);
     order_indexer_[o->id] = o;
-    auto& p_level = (o->side == Side::Buy) ? bids_ : asks_;
-    p_level[o->price].add(o);
+
+    if (o->side == Side::Buy) {
+      auto [it, _] = bids_.try_emplace(o->price, PriceLevelT(o->price));
+      it->second.add(o);
+    } else {
+      auto [it, _] = asks_.try_emplace(o->price, PriceLevelT(o->price));
+      it->second.add(o);
+    }
   }
 
   void processCancelOrder(const OrderCancelRequest& ocr) {
     auto it = order_indexer_.find(ocr.order_id);
     if (it == order_indexer_.end()) return;
     auto* o = it -> second;
-    auto& p_level = (o->side == Side::Buy) ? bids_ : asks_;
-    p_level[o->price].erase(o);
+
+    if (o->side == Side::Buy) {
+      auto price_level_it = bids_.find(o->price);
+      if (price_level_it != bids_.end()) 
+        price_level_it->second.erase(o);
+    } else {
+      auto price_level_it = asks_.find(o->price);
+      if (price_level_it != asks_.end()) 
+        price_level_it->second.erase(o);
+    }
+
     order_indexer_.erase(it);
     order_pool_.release(o);
   }
