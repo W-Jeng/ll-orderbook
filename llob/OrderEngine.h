@@ -1,5 +1,8 @@
 #pragma once
+#include <optional>
 #include "llob/Dispatcher.h"
+#include "llob/OrderEngine.h"
+#include "llob/OrderIdGenerator.h"
 
 namespace llob {
 
@@ -7,14 +10,24 @@ template<Dispatcher DispatcherT>
 class OrderEngine {
 public:
   explicit OrderEngine(DispatcherT& d)
-    : dispatcher(d) {}
+    : dispatcher_(d)
+    , order_id_gen_(OrderIdGenerator{}) {}
 
-  void submit(const OrderCommand& cmd) {
-    dispatcher.submit(cmd);
+  std::optional<OrderId> submit(OrderCommand& cmd) {
+    std::optional<OrderId> assigned_id;
+
+    if (cmd.type == CommandType::New) {
+      assigned_id = order_id_gen_.next();
+      cmd.new_order_request.setOrderId(*assigned_id);
+    }
+
+    dispatcher_.submit(cmd);
+    return assigned_id;
   }
 
 private:
-  DispatcherT& dispatcher;
+  OrderIdGenerator order_id_gen_;
+  DispatcherT& dispatcher_;
 };
 
 } // namespace llob

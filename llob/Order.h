@@ -41,6 +41,10 @@ struct NewOrderRequest {
         qty,
         allocated_order_id);
   } 
+
+  void setOrderId(OrderId id) {
+    allocated_order_id = id;
+  }
 };
 
 struct OrderCancelRequest {
@@ -55,27 +59,22 @@ struct OrderCancelRequest {
 };
 
 struct Order {
-  OrderState state;
   OrderId id;
   InstrumentId instrument_id;
   Side side;
   Price price;
   Quantity qty;
   Quantity filled;
-  uint16_t book_slot;
 
   Order()
-    : state(OrderState::New)
-    , id(0)
+    : id(0)
     , instrument_id(0)
     , side(Side::Buy)
     , price(Price{})
     , qty(Quantity{})
-    , filled(Quantity{})
-    , book_slot(0) {}
+    , filled(Quantity{}) {}
 
   void setFrom(const NewOrderRequest& nor) {
-    state = OrderState::New;
     id = nor.allocated_order_id;
     instrument_id = nor.instrument_id;
     side = nor.side;
@@ -91,6 +90,22 @@ struct Order {
   bool isFullyFilled() const {
     return qty == filled;
   }
+};
+
+/*
+ * prev -> older order (higher priority)
+ * next -> newer order (lower priority
+ */
+
+struct OrderNode {
+  Order order;
+  OrderNode* prev;
+  OrderNode* next;
+
+  OrderNode()
+    : order(Order{})
+    , prev(nullptr)
+    , next(nullptr) {}
 };
 
 }; //end of namespace llob

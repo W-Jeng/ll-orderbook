@@ -16,7 +16,7 @@ concept OrderBook = requires(T book, OrderCommand oc) {
   { book.process(oc) } -> std::same_as<void>;
 };
 
-template<PriceLevel PriceLevelT, size_t PoolSize>
+template<ListBasedPriceLevel PriceLevelT, size_t PoolSize>
 class ClassicOrderBook {
 public:
   explicit ClassicOrderBook(InstrumentId id)
@@ -149,6 +149,81 @@ private:
       releaseIfFilled(bbid_o);
       releaseIfFilled(bask_o);
     }
+  }
+};
+
+template<InstrusivePriceLevel PriceLevelT, size_t PoolSize>
+class NodeBasedOrderBook {
+public:
+  explicit NodeBasedOrderBook(InstrumentId id)
+      : instrument_id_(id) { }
+
+  void process(const OrderCommand& command) {
+    std::cout << "Processing command: " << command.toString() << "\n";
+    switch (command.type) {
+      case CommandType::New:
+        processNewOrder(command.new_order_request);
+        break;
+
+      case CommandType::Cancel:
+        processCancelOrder(command.order_cancel_request);
+        break;
+    }
+  }
+
+private:
+  const InstrumentId instrument_id_;
+  std::map<Price, PriceLevelT, std::greater<Price>> bids_;
+  std::map<Price, PriceLevelT, std::less<Price>> asks_;
+  std::unordered_map<OrderId, OrderNode*> order_node_indexer_;
+  PoolAllocator<OrderNode, PoolSize> order_pool_;
+
+  void processNewOrder(const NewOrderRequest& nor) {
+    OrderNode* o_node = order_pool_.allocate();
+
+    if (!o_node) 
+      throw std::runtime_error("Order pool exhausted! Last nor="+nor.toString());
+
+    o_node->order.setFrom(nor);
+    order_node_indexer_[o_node->order.id] = o_node;
+    auto add_to = [](auto& book, OrderNode* order_node) {
+      auto [it, _] = book.try_emplace(order_node->order.price,
+                                      PriceLevelT(order_node->order.price));
+      it->second.add(order_node);
+    };
+
+    if (o_node->order.side == Side::Buy)
+      add_to(bids_, o_node);
+    else
+      add_to(asks_, o_node);
+  }
+
+  void processCancelOrder(const OrderCancelRequest& ocr) {
+    auto it = order_node_indexer_.find(ocr.order_id);
+
+    if (it == order_node_indexer_.end())
+      return;
+
+    auto* o_node = it -> second;
+    auto cancel_from = [](auto& book, OrderNode* order_node) {
+      auto price_level_it = book.find(order_node->order.price);
+      
+      if (price_level_it == book.end())
+        return;
+
+      price_level_it->second.erase(order_node);
+
+      if (price_level_it->second.empty()) 
+        book.erase(price_level_it);
+    };
+
+    if (o_node->order.side == Side::Buy)
+      cancel_from(bids_, o_node);
+    else
+      cancel_from(asks_, o_node);
+
+    order_node_indexer_.erase(it);
+    order_pool_.release(o_node);
   }
 };
 
