@@ -11,3 +11,4 @@ find_package(benchmark CONFIG REQUIRED)
 
 add_subdirectory(llob)
 add_subdirectory(tests)
+add_subdirectory(benchmarks)
