@@ -3,6 +3,7 @@
 #include <vector>
 #include <iostream>
 #include <stdexcept>
+#include <optional>
 #include "llob/Types.h"
 #include "llob/Order.h"
 #include "llob/OrderCommand.h"
@@ -12,8 +13,13 @@
 namespace llob {
 
 template<typename T>
-concept OrderBook = requires(T book, OrderCommand oc) {
+concept OrderBook = requires(T book, OrderCommand oc, Side s, Price p, OrderId id) {
   { book.process(oc) } -> std::same_as<void>;
+  { book.bestBid() } -> std::same_as<std::optional<Price>>;
+  { book.bestAsk() } -> std::same_as<std::optional<Price>>;
+  { book.sizeAtPrice(s, p) } -> std::same_as<std::size_t>;
+  { book.hasOrders(id) } -> std::same_as<bool>;
+  { book.numLevels(s) } -> std::same_as<std::size_t>;
 };
 
 template<ListBasedPriceLevel PriceLevelT, size_t PoolSize>
@@ -23,7 +29,6 @@ public:
       : instrument_id_(id) { }
 
   void process(const OrderCommand& command) {
-    std::cout << "Processing command: " << command.toString() << "\n";
     switch (command.type) {
       case CommandType::New:
         processNewOrder(command.new_order_request);
@@ -33,6 +38,32 @@ public:
         processCancelOrder(command.order_cancel_request);
         break;
     }
+  }
+
+  std::optional<Price> bestBid() const {
+    return bids_.empty() ? std::nullopt : std::optional{bids_.begin()->first};
+  }
+  
+  std::optional<Price> bestAsk() const {
+    return asks_.empty() ? std::nullopt : std::optional{asks_.begin()->first};
+  }
+  
+  template<typename Book>
+  static std::size_t sizeAtPriceImpl(const Book& book, Price p) {
+    auto it = book.find(p);
+    return (it == book.end()) ? 0 : it->second.size();
+  }
+
+  std::size_t sizeAtPrice(Side side, Price p) const {
+    return (side == Side::Buy) ? sizeAtPriceImpl(bids_, p) : sizeAtPriceImpl(asks_, p);
+  }
+
+  bool hasOrder(OrderId id) const {
+    return order_indexer_.contains(id);
+  }
+
+  std::size_t numLevels(Side side) const {
+    return (side == Side::Buy) ? bids_.size() : asks_.size();
   }
 
 private:
@@ -159,7 +190,6 @@ public:
       : instrument_id_(id) { }
 
   void process(const OrderCommand& command) {
-    std::cout << "Processing command: " << command.toString() << "\n";
     switch (command.type) {
       case CommandType::New:
         processNewOrder(command.new_order_request);
@@ -169,6 +199,32 @@ public:
         processCancelOrder(command.order_cancel_request);
         break;
     }
+  }
+
+  std::optional<Price> bestBid() const {
+    return bids_.empty() ? std::nullopt : std::optional{bids_.begin()->first};
+  }
+
+  std::optional<Price> bestAsk() const {
+    return asks_.empty() ? std::nullopt : std::optional{asks_.begin()->first};
+  }
+
+  template<typename Book>
+  static std::size_t sizeAtPriceImpl(const Book& book, Price p) {
+    auto it = book.find(p);
+    return (it == book.end()) ? 0 : it->second.size();
+  }
+
+  std::size_t sizeAtPrice(Side side, Price p) const {
+    return (side == Side::Buy) ? sizeAtPriceImpl(bids_, p) : sizeAtPriceImpl(asks_, p);
+  }
+
+  bool hasOrder(OrderId id) const {
+    return order_node_indexer_.contains(id);
+  }
+
+  std::size_t numLevels(Side side) const {
+    return (side == Side::Buy) ? bids_.size() : asks_.size();
   }
 
 private:
@@ -196,6 +252,8 @@ private:
       add_to(bids_, o_node);
     else
       add_to(asks_, o_node);
+
+    tryMatchOrders();
   }
 
   void processCancelOrder(const OrderCancelRequest& ocr) {
@@ -224,6 +282,66 @@ private:
 
     order_node_indexer_.erase(it);
     order_pool_.release(o_node);
+  }
+
+  void tryMatchOrders() {
+    auto match = [](OrderNode* bid_o_node, OrderNode* ask_o_node) {
+      Quantity to_fill_qty = std::min(
+        bid_o_node->order.qty - bid_o_node->order.filled,
+        ask_o_node->order.qty - ask_o_node->order.filled);
+      bid_o_node->order.fillQty(to_fill_qty);
+      ask_o_node->order.fillQty(to_fill_qty);
+    };
+
+    auto popOrderIfFullyFilled = [](PriceLevelT& plevel, OrderNode* o_node) {
+      if (!o_node->order.isFullyFilled())
+        return;
+
+      plevel.erase(o_node);
+    };
+
+    auto popPriceLevelIfEmpty = [](auto& plevel_map) {
+      auto best_plevel = plevel_map.begin();
+
+      if (best_plevel->second.empty())
+        plevel_map.erase(best_plevel);
+    };
+
+    auto releaseIfFilled = [&](OrderNode* o_node) {
+      if (!o_node->order.isFullyFilled())
+        return;
+
+      order_node_indexer_.erase(o_node->order.id);
+      order_pool_.release(o_node);
+    };
+
+    while (true) {
+      if (bids_.empty() || asks_.empty())
+        return;
+      
+      auto bbid_plevel = bids_.begin();
+      auto bask_plevel = asks_.begin();
+
+      if (bbid_plevel->first < bask_plevel->first)
+        return;
+
+      // match happens here
+      auto bbid_o_node = bbid_plevel->second.front();
+      auto bask_o_node = bask_plevel->second.front();
+      match(bbid_o_node, bask_o_node);
+
+      // remove from price level, if fully filled
+      popOrderIfFullyFilled(bbid_plevel->second, bbid_o_node);
+      popOrderIfFullyFilled(bask_plevel->second, bask_o_node);
+      
+      // remove top level if empty
+      popPriceLevelIfEmpty(bids_);
+      popPriceLevelIfEmpty(asks_);
+
+      // release usage
+      releaseIfFilled(bbid_o_node);
+      releaseIfFilled(bask_o_node);
+    }
   }
 };
 

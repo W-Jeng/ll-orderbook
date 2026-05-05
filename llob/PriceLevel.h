@@ -61,7 +61,8 @@ public:
   explicit NodeBasedPriceLevel(Price p)
     : price_(p)
     , first_node_(nullptr)
-    , last_node_(nullptr) {}
+    , last_node_(nullptr)
+    , num_orders_(0) {}
 
   std::size_t size() const { return num_orders_; }
   bool empty() const { return num_orders_ == 0; }

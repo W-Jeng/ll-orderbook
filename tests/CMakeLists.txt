@@ -1,6 +1,6 @@
 find_package(GTest CONFIG REQUIRED)
 
-add_executable(llob_tests test_price_level.cpp)
+add_executable(llob_tests TestPriceLevel.cpp TestOrderBook.cpp)
 
 target_link_libraries(llob_tests PUBLIC 
   llob_lib

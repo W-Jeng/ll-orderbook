@@ -32,7 +32,7 @@ protected:
   std::size_t internal_id;
 };
 
-TEST_F(ClassicPriceLevelTest, EmptyOnConsutrction) {
+TEST_F(ClassicPriceLevelTest, EmptyOnConstruction) {
   EXPECT_EQ(level->size(), 0);
   EXPECT_TRUE(level->empty());
 }
@@ -172,6 +172,5 @@ TEST_F(NodeBasedPriceLevelTest, AddAfterEraseAppendsToBack) {
   EXPECT_FALSE(level->empty());
   EXPECT_EQ(level->front()->order.id, 2);
 }
-
 
 } // namespace llob
