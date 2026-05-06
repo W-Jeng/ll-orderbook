@@ -17,7 +17,7 @@ int main() {
   // Initialization
   BookRegistryT book_registry;
   auto order_book = std::make_unique<OrderBookT>(0);
-  book_registry.add(0, std::move(order_book));
+  book_registry.add(std::move(order_book));
   InlineDispatcherT d(book_registry); 
   OrderEngine<InlineDispatcherT> order_engine(d);
 

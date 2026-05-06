@@ -9,5 +9,7 @@ cmake -S .. -B . -G "Unix Makefiles" \
     -DCMAKE_TOOLCHAIN_FILE=/root/vcpkg/scripts/buildsystems/vcpkg.cmake
 cmake --build .
 
+Build and Perf  
+cmake --build . && perf stat -d -d -d ./benchmarks/llob_bm all 1000000 500 1  
 
 

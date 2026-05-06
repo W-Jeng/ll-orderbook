@@ -15,6 +15,7 @@ namespace llob {
 template<typename T>
 concept OrderBook = requires(T book, OrderCommand oc, Side s, Price p, OrderId id) {
   { book.process(oc) } -> std::same_as<void>;
+  { book.getInstrumentId() } -> std::same_as<InstrumentId>;
   { book.bestBid() } -> std::same_as<std::optional<Price>>;
   { book.bestAsk() } -> std::same_as<std::optional<Price>>;
   { book.sizeAtPrice(s, p) } -> std::same_as<std::size_t>;
@@ -27,7 +28,7 @@ class ClassicOrderBook {
 public:
   explicit ClassicOrderBook(InstrumentId id)
       : instrument_id_(id) { }
-
+  
   void process(const OrderCommand& command) {
     switch (command.type) {
       case CommandType::New:
@@ -38,6 +39,10 @@ public:
         processCancelOrder(command.order_cancel_request);
         break;
     }
+  }
+  
+  InstrumentId getInstrumentId() const {
+    return instrument_id_;
   }
 
   std::optional<Price> bestBid() const {
@@ -199,6 +204,10 @@ public:
         processCancelOrder(command.order_cancel_request);
         break;
     }
+  }
+
+  InstrumentId getInstrumentId() const {
+    return instrument_id_;
   }
 
   std::optional<Price> bestBid() const {

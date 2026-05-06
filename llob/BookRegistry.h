@@ -8,7 +8,8 @@ namespace llob {
 template<typename BookT>
 class BookRegistry {
 public:
-  void add(InstrumentId id, std::unique_ptr<BookT> book) {
+  void add(std::unique_ptr<BookT> book) {
+    InstrumentId id = book->getInstrumentId();
     if (books_.size() <= id) books_.resize(id+1);
     books_[id] = std::move(book);
   }
