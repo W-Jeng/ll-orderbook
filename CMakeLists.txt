@@ -8,6 +8,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 find_package(fmt CONFIG REQUIRED)
 find_package(GTest CONFIG REQUIRED)
 find_package(benchmark CONFIG REQUIRED)
+find_package(Boost REQUIRED COMPONENTS container)
+find_package(Boost REQUIRED COMPONENTS unordered)
 
 add_subdirectory(llob)
 add_subdirectory(tests)

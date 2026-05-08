@@ -3,6 +3,7 @@
 #include <list>
 #include <unordered_map>
 #include <iostream>
+#include <boost/unordered/unordered_flat_map.hpp>
 #include "llob/Order.h"
 
 namespace llob {

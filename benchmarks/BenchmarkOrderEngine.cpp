@@ -4,6 +4,7 @@
 #include <cmath>
 #include <random>
 #include <string>
+#include <chrono>
 #include "llob/Types.h"
 #include "llob/OrderIdGenerator.h"
 #include "llob/OrderBook.h"
@@ -20,64 +21,50 @@ Price roundPrice(Price p, int decimal) {
   return std::round(p * val)/val;
 }
 
-std::vector<OrderCommand> makeWorkloadNoMatchSingle(
-    std::size_t n_commands,
-    std::size_t max_live,
-    std::uint32_t seed,
-    InstrumentId inst_id,
-    OrderIdGenerator& id_generator) {
-  // use the OrderIdGenerator that orderbook is using
-  std::mt19937 rng(seed);
-  std::uniform_real_distribution<Price> buy_dist(99.0, 99.99);
-  std::uniform_real_distribution<Price> sell_dist(100.0, 100.99);
-  std::uniform_int_distribution<Quantity> qty_dist(1, 100);
-  std::bernoulli_distribution side_dist(0.5);
-  std::bernoulli_distribution is_new(0.5);
-  std::vector<OrderCommand> cmds;
-  cmds.reserve(n_commands);
-  std::vector<OrderId> active_order_ids;
-  
-  for (std::size_t i = 0; i < n_commands; ++i) {
-    bool must_cancel = (active_order_ids.size() >= max_live);
-    bool must_new = active_order_ids.empty();
-    bool submit_new = must_new || (!must_cancel && is_new(rng));
-
-    if (submit_new) {
-      Side s = side_dist(rng) ? Side::Buy : Side::Sell;
-      Price p = (s == Side::Buy) ? buy_dist(rng) : sell_dist(rng);
-      p = roundPrice(p, 2);
-      Quantity q = qty_dist(rng);
-      NewOrderRequest nor(inst_id, s, p, q);
-      OrderCommand cmd(std::move(nor));
-      cmds.push_back(cmd);
-      active_order_ids.push_back(id_generator.next());
-    } else {
-      std::uniform_int_distribution<std::size_t> cancel_idx_dist(0, active_order_ids.size()-1);
-      std::size_t cancel_idx = cancel_idx_dist(rng);
-      OrderCancelRequest ocq(active_order_ids[cancel_idx], inst_id);
-      OrderCommand cmd(std::move(ocq));
-      cmds.push_back(cmd);
-      // swap with last, then pop last
-      active_order_ids[cancel_idx] = active_order_ids.back();
-      active_order_ids.pop_back();
-    }
-  }
-
-  return cmds;
-}
-
 std::vector<std::vector<OrderCommand>> makeWorkloadNoMatch(
     std::size_t n_commands,
     std::size_t max_live,
     std::uint32_t seed,
     uint16_t n_instruments) {
-  std::vector<std::vector<OrderCommand>> cmds;
-  cmds.reserve(n_instruments);
+  std::uniform_real_distribution<Price> buy_dist(99.0, 99.99);
+  std::uniform_real_distribution<Price> sell_dist(100.0, 100.99);
+  std::uniform_int_distribution<Quantity> qty_dist(1, 100);
+  std::bernoulli_distribution side_dist(0.5);
+  std::bernoulli_distribution is_new(0.5);
+
   OrderIdGenerator id_generator;
+  std::mt19937 rng(seed);
 
-  for (uint16_t i = 0; i < n_instruments; ++i)
-    cmds.push_back(makeWorkloadNoMatchSingle(n_commands, max_live, seed, i, id_generator));
+  std::vector<std::vector<OrderCommand>> cmds(n_instruments);
+  for (auto& v : cmds) v.reserve(n_commands);
 
+  std::vector<std::vector<OrderId>> active(n_instruments);
+
+  for (std::size_t e = 0; e < n_commands; ++e) {
+    for (uint16_t inst = 0; inst < n_instruments; ++inst) {
+      auto& active_ids = active[inst];
+      bool must_cancel = (active_ids.size() >= max_live);
+      bool must_new = active_ids.empty();
+      bool submit_new = must_new || (!must_cancel && is_new(rng));
+
+      if (submit_new) {
+        Side s = side_dist(rng) ? Side::Buy : Side::Sell;
+        Price p = (s == Side::Buy) ? buy_dist(rng) : sell_dist(rng);
+        p = roundPrice(p, 2);
+        Quantity q = qty_dist(rng);
+        NewOrderRequest nor(inst, s, p, q);
+        cmds[inst].emplace_back(std::move(nor));
+        active_ids.push_back(id_generator.next());
+      } else {
+        std::uniform_int_distribution<std::size_t> cancel_idx_dist(0, active_ids.size() - 1);
+        std::size_t cancel_idx = cancel_idx_dist(rng);
+        OrderCancelRequest ocq(active_ids[cancel_idx], inst);
+        cmds[inst].emplace_back(std::move(ocq));
+        active_ids[cancel_idx] = active_ids.back();
+        active_ids.pop_back();
+      }
+    }
+  }
   return cmds;
 }
 
@@ -114,28 +101,70 @@ int main(int argc, char** argv) {
 
     InlineDispatcherT d(book_registry);
     llob::OrderEngine<InlineDispatcherT> order_engine(d);
-    
+
+    auto t0 = std::chrono::steady_clock::now();
     if (n_instruments > 1) {
       /*
        * submit to all instruments in every event round
        * array access-pattern is not cache friendly
        * but it simulates how real-life event submission works
        */
-      for (std::size_t cmd_i; cmd_i < n_cmds; ++cmd_i) {
-        for (std::uint16_t inst_i; inst_i < n_instruments; ++inst_i) {
+      for (std::size_t cmd_i = 0; cmd_i < n_cmds; ++cmd_i) {
+        for (std::uint16_t inst_i = 0; inst_i < n_instruments; ++inst_i) {
           order_engine.submit(cmds_vec[inst_i][cmd_i]);     
         }
       }
     } else {
-      for (std::size_t cmd_i; cmd_i < n_cmds; ++cmd_i)
+      for (std::size_t cmd_i = 0; cmd_i < n_cmds; ++cmd_i)
         order_engine.submit(cmds_vec[0][cmd_i]);     
     }
-  }
+
+    auto t1 = std::chrono::steady_clock::now();
+    double secs = std::chrono::duration<double>(t1-t0).count();
+    std::size_t total_commands = n_instruments * n_cmds;
+    std::size_t commands_per_second = total_commands / secs;
+    std::cout << "Benchmark for Classic Order Engine completed in " 
+      << std::round(secs*pow(10,5))/pow(10,5) << " seconds. " 
+      << "Total operations/sec: " << commands_per_second << "\n";
+    }
 
   if (which == "node" || which == "all") {
+    using OrderBookT = llob::NodeBasedOrderBook<llob::NodeBasedPriceLevel, 1024>;
+    using BookRegistryT = llob::BookRegistry<OrderBookT>;
+    using InlineDispatcherT = llob::InlineDispatcher<BookRegistryT>;
+    BookRegistryT book_registry;
 
+    for (std::uint16_t i = 0; i < n_instruments; ++i)
+      book_registry.add(std::make_unique<OrderBookT>(i));
+
+    InlineDispatcherT d(book_registry);
+    llob::OrderEngine<InlineDispatcherT> order_engine(d);
+
+    auto t0 = std::chrono::steady_clock::now();
+    if (n_instruments > 1) {
+      /*
+       * submit to all instruments in every event round
+       * array access-pattern is not cache friendly
+       * but it simulates how real-life event submission works
+       */
+      for (std::size_t cmd_i = 0; cmd_i < n_cmds; ++cmd_i) {
+        for (std::uint16_t inst_i = 0; inst_i < n_instruments; ++inst_i) {
+          order_engine.submit(cmds_vec[inst_i][cmd_i]);     
+        }
+      }
+    } else {
+      for (std::size_t cmd_i = 0; cmd_i < n_cmds; ++cmd_i)
+        order_engine.submit(cmds_vec[0][cmd_i]);     
+    }
+
+    auto t1 = std::chrono::steady_clock::now();
+    double secs = std::chrono::duration<double>(t1-t0).count();
+    std::size_t total_commands = n_instruments * n_cmds;
+    std::size_t commands_per_second = total_commands / secs;
+    std::cout << "Benchmark for Node Based Order Engine completed in " 
+      << std::round(secs*pow(10,5))/pow(10,5) << " seconds. " 
+      << "Total operations/sec: " << commands_per_second << "\n";
   }
-
   
   return 0;
 }

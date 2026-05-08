@@ -4,6 +4,8 @@
 #include <iostream>
 #include <stdexcept>
 #include <optional>
+#include <boost/unordered/unordered_flat_map.hpp>
+#include <boost/container/flat_map.hpp>
 #include "llob/Types.h"
 #include "llob/Order.h"
 #include "llob/OrderCommand.h"
@@ -85,7 +87,7 @@ private:
       throw std::runtime_error("Order pool exhausted! Last nor="+nor.toString());
 
     o->setFrom(nor);
-    order_indexer_[o->id] = o;
+    order_indexer_.insert({o->id, o});
     auto add_to = [](auto& book, Order* order) {
       auto [it, _] = book.try_emplace(order->price, PriceLevelT(order->price));
       it->second.add(order);
@@ -238,9 +240,9 @@ public:
 
 private:
   const InstrumentId instrument_id_;
-  std::map<Price, PriceLevelT, std::greater<Price>> bids_;
-  std::map<Price, PriceLevelT, std::less<Price>> asks_;
-  std::unordered_map<OrderId, OrderNode*> order_node_indexer_;
+  boost::container::flat_map<Price, PriceLevelT, std::greater<Price>> bids_;
+  boost::container::flat_map<Price, PriceLevelT, std::less<Price>> asks_;
+  boost::unordered_flat_map<OrderId, OrderNode*> order_node_indexer_;
   PoolAllocator<OrderNode, PoolSize> order_pool_;
 
   void processNewOrder(const NewOrderRequest& nor) {
