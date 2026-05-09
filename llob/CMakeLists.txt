@@ -15,3 +15,6 @@ target_link_libraries(main2 PRIVATE llob_lib)
 
 add_executable(main3 main3.cpp)
 target_link_libraries(main3 PRIVATE llob_lib)
+
+add_executable(main4 main4.cpp)
+target_link_libraries(main4 PRIVATE llob_lib)
