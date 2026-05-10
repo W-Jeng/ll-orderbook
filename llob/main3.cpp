@@ -3,7 +3,7 @@
 #include <iostream>
 #include <string>
 #include <chrono>
-#include "llob/SPSCQueue2.h"
+#include "llob/SPSCQueue3.h"
 
 struct A {
   const int b;
@@ -15,7 +15,7 @@ struct A {
 
 std::atomic<bool> running = false;
 
-void worker(llob::SPSCQueue2<A, 16>& q) {
+void worker(llob::SPSCQueue3<A, 16>& q) {
   while (running) {
     A* popped = q.front();
 
@@ -29,7 +29,7 @@ void worker(llob::SPSCQueue2<A, 16>& q) {
 int main() {
   std::cout << "Start main\n";
   running.store(true);
-  llob::SPSCQueue2<A, 16> q;
+  llob::SPSCQueue3<A, 16> q;
   std::thread t([&q](){ 
       worker(q);
   });
