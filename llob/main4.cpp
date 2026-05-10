@@ -3,9 +3,12 @@
 #include <iostream>
 #include <string>
 #include <chrono>
-#include "llob/SPSCQueue.h"
+#include "llob/PoolAllocator2.h"
 
 struct A {
+  A()
+    : b(0) {}
+
   const int b;
 
   std::string toString() const {
@@ -13,33 +16,26 @@ struct A {
   }
 };
 
-std::atomic<bool> running = false;
-
-void worker(llob::SPSCQueue<A, 16>& q) {
-  while (running) {
-    std::optional<A> popped = q.pop();
-
-    if (popped.has_value())
-      std::cout << (*popped).toString() << "\n";
-  }
-}
-
 int main() {
   std::cout << "Start main\n";
-  running.store(true);
-  llob::SPSCQueue<A, 16> q;
-  std::thread t([&q](){ 
-      worker(q);
-  });
 
-  for (int i = 0; i < 100 ; ++i) {
-    A a{i};
-    while (!q.push(a))
-      continue;
+  llob::Allocator<A, 10> allocator;
+  std::vector<A*> mem_storage;
+  
+  for (int i = 0; i < 15; ++i) {
+    A* a = allocator.allocate();
+    if (a) {
+      std::cout << "i: " << i << ", allocated mem address: " << a << std::endl;
+      mem_storage.push_back(a);
+    } else {
+      std::cout << "i: " << i << ", nullptr u dummy!\n";
+      if (!mem_storage.empty()) {
+        allocator.release(mem_storage.back());
+        mem_storage.pop_back();
+      }
+    }
   }
 
-  std::this_thread::sleep_for(std::chrono::seconds(1));
-  running.store(false);
-  t.join();
+
   std::cout << "End main\n";
 }
