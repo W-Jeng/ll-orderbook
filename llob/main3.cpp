@@ -3,7 +3,7 @@
 #include <iostream>
 #include <string>
 #include <chrono>
-#include "llob/SPSCQueue3.h"
+#include "llob/SPSCQueue.h"
 
 struct A {
   const int b;
@@ -13,35 +13,33 @@ struct A {
   }
 };
 
-std::atomic<bool> running = false;
+std::atomic<bool> running = true;
 
-void worker(llob::SPSCQueue3<A, 16>& q) {
+void worker(llob::SPSCQueue<A, 16>& q) {
   while (running) {
-    A* popped = q.front();
-
-    if (popped) {
-      std::cout << popped->toString() << "\n";
+    A* a = q.front();
+    if (a) {
+      std::cout << a -> toString() << "\n";
       q.pop();
     }
   }
 }
 
 int main() {
-  std::cout << "Start main\n";
-  running.store(true);
-  llob::SPSCQueue3<A, 16> q;
-  std::thread t([&q](){ 
-      worker(q);
+  std::cout << "start of main!\n";
+  llob::SPSCQueue<A, 16> q;
+  running = true;
+  std::thread t([&q]{
+    worker(q);
   });
 
-  for (int i = 0; i < 100 ; ++i) {
-    A a{i};
-    while (!q.push(a)) 
+  for (int i = 0; i < 100; ++i) {
+    while (!q.push(A{i}))
       continue;
   }
-
+  
   std::this_thread::sleep_for(std::chrono::seconds(1));
-  running.store(false);
+  running = false;
   t.join();
-  std::cout << "End main\n";
+  std::cout << "end of main!\n";
 }
