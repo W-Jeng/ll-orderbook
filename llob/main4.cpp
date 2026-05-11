@@ -3,7 +3,7 @@
 #include <iostream>
 #include <string>
 #include <chrono>
-#include "llob/PoolAllocator2.h"
+#include "llob/PoolAllocator.h"
 
 struct A {
   A()
@@ -19,7 +19,7 @@ struct A {
 int main() {
   std::cout << "Start main\n";
 
-  llob::Allocator<A, 10> allocator;
+  llob::PoolAllocator<A, 10> allocator;
   std::vector<A*> mem_storage;
   
   for (int i = 0; i < 15; ++i) {

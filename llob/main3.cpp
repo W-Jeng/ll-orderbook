@@ -19,6 +19,8 @@ void worker(llob::SPSCQueue<A, 16>& q) {
   while (running) {
     A* a = q.front();
     if (a) {
+      auto time = std::chrono::high_resolution_clock::now();
+      std::cout << "Popped at time: " << time << " ->> ";
       std::cout << a -> toString() << "\n";
       q.pop();
     }
@@ -36,6 +38,8 @@ int main() {
   for (int i = 0; i < 100; ++i) {
     while (!q.push(A{i}))
       continue;
+    auto time = std::chrono::high_resolution_clock::now();
+    std::cout << "pushed at time: " << time << "i: " << i << "\n";
   }
   
   std::this_thread::sleep_for(std::chrono::seconds(1));
