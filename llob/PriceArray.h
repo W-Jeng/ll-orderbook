@@ -23,24 +23,63 @@ public:
   PriceLevelT& bestPriceLevel() {
     return price_level_[best_idx_];
   }
+
+  void updateBestOnInsertIdx(std::size_t idx) {
+    if constexpr (S == Side::Buy) {
+      if (idx > best_idx_ || best_idx_ == INVALID_IDX)
+        best_idx_ = idx;
+    } else {
+      if (idx < best_idx_ || best_idx_ == INVALID_IDX)
+        best_idx_ = idx;
+    }
+  }
+
+  void updateBestOnEmptyIdx(std::size_t idx) {
+    // does not influence best levels
+    if (idx != best_idx_)
+      return;
+
+    if constexpr (S == Side::Buy) {
+      // scan down
+      while (best_idx_ > 0) {
+        --best_idx_;
+        if (!price_level_[best_idx_].empty())
+          return;
+      }
+
+      if (price_level_[0].empty())
+        best_idx_ = INVALID_IDX;
+    } else {
+      // scan up
+      ++best_idx_;
+      while (best_idx_ < price_level_.size()) {
+        if (!price_level_[best_idx_].empty())
+          return;
+        ++best_idx_;
+      }
+
+      if (best_idx_ == price_level_.size())
+        best_idx_ = INVALID_IDX;
+    }
+  }
+
+  std::size_t index(Price p) const {
+    return (p - min_price_)/tick_size_;
+  }
   
   bool empty() const {
     return best_idx_ == INVALID_IDX;
   }
 
-private:
-  std::size_t index(Price p) const {
-    return (p - min_price_)/tick_size_;
+  Price priceAt(std::size_t i) const {
+    return min_price_ + i * tick_size_;
   }
 
+private:
   void rescanBest() {
     if (best_idx_ == INVALID_IDX || price_level_[best_idx_].empty()) {
       
     }
-  }
-
-  Price priceAt(std::size_t i) const {
-    return min_price_ + i * tick_size_;
   }
 
   std::size_t best_idx_;
