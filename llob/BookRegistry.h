@@ -1,6 +1,7 @@
 #pragma once
 #include <vector>
 #include <memory>
+#include <string>
 #include "llob/Types.h"
 
 namespace llob {
@@ -15,6 +16,15 @@ public:
   }
 
   BookT& get(InstrumentId id) { return *books_[id]; }
+
+  std::string report() {
+    std::string res;
+    for (auto& b: books_) {
+      if (b)
+        res += b->report() + "\n";
+    } 
+    return res;
+  }
 
 private:
   std::vector<std::unique_ptr<BookT>> books_;    

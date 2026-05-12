@@ -4,8 +4,10 @@
 #include <iostream>
 #include <stdexcept>
 #include <optional>
+#include <string>
 #include <boost/unordered/unordered_flat_map.hpp>
 #include <boost/container/flat_map.hpp>
+#include <fmt/format.h>
 #include "llob/Types.h"
 #include "llob/Order.h"
 #include "llob/OrderCommand.h"
@@ -23,6 +25,7 @@ concept OrderBook = requires(T book, OrderCommand oc, Side s, Price p, OrderId i
   { book.sizeAtPrice(s, p) } -> std::same_as<std::size_t>;
   { book.hasOrders(id) } -> std::same_as<bool>;
   { book.numLevels(s) } -> std::same_as<std::size_t>;
+  { book.report() } -> std::same_as<std::string>;
 };
 
 template<ListBasedPriceLevel PriceLevelT, size_t PoolSize>
@@ -32,6 +35,8 @@ public:
       : instrument_id_(id) { }
   
   void process(const OrderCommand& command) {
+    ++order_cmd_received_;
+
     switch (command.type) {
       case CommandType::New:
         processNewOrder(command.new_order_request);
@@ -73,12 +78,17 @@ public:
     return (side == Side::Buy) ? bids_.size() : asks_.size();
   }
 
+  std::string report() const {
+    return fmt::format("[Classic OB {}] Executed {}", instrument_id_, order_cmd_received_);
+  }
+
 private:
   const InstrumentId instrument_id_;
   std::map<Price, PriceLevelT, std::greater<Price>> bids_;
   std::map<Price, PriceLevelT, std::less<Price>> asks_;
   std::unordered_map<OrderId, Order*> order_indexer_;
   PoolAllocator<Order, PoolSize> order_pool_;
+  std::size_t order_cmd_received_ = 0;
 
   void processNewOrder(const NewOrderRequest& nor) {
     Order* o = order_pool_.allocate();
@@ -197,6 +207,8 @@ public:
       : instrument_id_(id) { }
 
   void process(const OrderCommand& command) {
+    ++order_cmd_received_;
+
     switch (command.type) {
       case CommandType::New:
         processNewOrder(command.new_order_request);
@@ -238,12 +250,17 @@ public:
     return (side == Side::Buy) ? bids_.size() : asks_.size();
   }
 
+  std::string report() const {
+    return fmt::format("[Node OB {}] Executed {}", instrument_id_, order_cmd_received_);
+  }
+
 private:
   const InstrumentId instrument_id_;
   boost::container::flat_map<Price, PriceLevelT, std::greater<Price>> bids_;
   boost::container::flat_map<Price, PriceLevelT, std::less<Price>> asks_;
   boost::unordered_flat_map<OrderId, OrderNode*> order_node_indexer_;
   PoolAllocator<OrderNode, PoolSize> order_pool_;
+  std::size_t order_cmd_received_ = 0;
 
   void processNewOrder(const NewOrderRequest& nor) {
     OrderNode* o_node = order_pool_.allocate();

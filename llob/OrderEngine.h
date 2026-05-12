@@ -1,5 +1,6 @@
 #pragma once
 #include <optional>
+#include <string>
 #include "llob/Dispatcher.h"
 #include "llob/OrderEngine.h"
 #include "llob/OrderIdGenerator.h"
@@ -23,6 +24,10 @@ public:
 
     dispatcher_.submit(cmd);
     return assigned_id;
+  }
+
+  std::string report() {
+    return dispatcher_.report();
   }
 
 private:

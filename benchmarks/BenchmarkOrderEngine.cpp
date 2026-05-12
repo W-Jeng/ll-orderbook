@@ -5,6 +5,7 @@
 #include <random>
 #include <string>
 #include <chrono>
+#include <thread>
 #include "llob/Types.h"
 #include "llob/OrderIdGenerator.h"
 #include "llob/OrderBook.h"
@@ -12,6 +13,7 @@
 #include "llob/Order.h"
 #include "llob/OrderCommand.h"
 #include "llob/BookRegistry.h"
+#include "llob/SPSCQueue.h"
 
 
 namespace llob {
@@ -70,19 +72,51 @@ std::vector<std::vector<OrderCommand>> makeWorkloadNoMatch(
 
 } // namespace llob
 
+template<typename OrderEngineT>
+void submitAllOrdersToEngine(OrderEngineT& order_engine, std::size_t n_cmds,
+    std::vector<std::vector<llob::OrderCommand>>& cmds_vec, std::uint16_t n_instruments) {
+  if (n_instruments > 1) {
+    /*
+     * submit to all instruments in every event round
+     * array access-pattern is not cache friendly
+     * but it simulates how real-life event submission works
+     */
+    for (std::size_t cmd_i = 0; cmd_i < n_cmds; ++cmd_i) {
+      for (std::uint16_t inst_i = 0; inst_i < n_instruments; ++inst_i) {
+        order_engine.submit(cmds_vec[inst_i][cmd_i]);     
+      }
+    }
+  } else {
+    for (std::size_t cmd_i = 0; cmd_i < n_cmds; ++cmd_i)
+      order_engine.submit(cmds_vec[0][cmd_i]);     
+  }
+}
+
+void summarizeRuntime(const std::string& name, auto& start, auto& end,
+    std::size_t n_cmds, std::uint16_t n_instruments) {
+  double secs = std::chrono::duration<double>(end-start).count();
+  std::size_t total_commands = n_instruments * n_cmds;
+  std::size_t commands_per_second = total_commands / secs;
+  std::cout << "Benchmark for " << name << " completed in " 
+    << std::round(secs*pow(10,5))/pow(10,5) << " seconds. " 
+    << "Total operations/sec: " << commands_per_second << "\n";
+}
+
 int main(int argc, char** argv) {
   /*
    * Args:
-   *  1) which: OrderBook construction algorithm (classic or node)
+   *  1) which: OrderEngine algorithm (classic or node) and (single or multithreaded)
    *  2) n_cmds: num of commands per instrument
    *  3) live: how many events an order can live through
    *  4) n_instruments: how many instruments we are distributing to
+   *  5) n_workers: only for multithreaded usage
    */
 
   std::string which = (argc > 1) ? argv[1] : "all";
   std::size_t n_cmds = (argc > 2) ? std::stoul(argv[2]) : 1'000;
   std::size_t live = (argc > 3) ? std::stoul(argv[3]) : 500;
   std::uint16_t n_instruments = (argc > 4) ? std::stoul(argv[4]) : 1;
+  std::uint8_t n_workers = (argc > 5) ? std::stoul(argv[5]) : 1;
   std::uint32_t seed = 42;
 
   if (live >= 1024)
@@ -90,7 +124,8 @@ int main(int argc, char** argv) {
 
   auto cmds_vec = llob::makeWorkloadNoMatch(n_cmds, live, seed, n_instruments);
 
-  if (which == "classic" || which == "all") {
+  if (which == "classic_s" || which == "all") {
+    // Single threaded unoptimized version (classic)
     using OrderBookT = llob::ClassicOrderBook<llob::ClassicPriceLevel, 1024>;
     using BookRegistryT = llob::BookRegistry<OrderBookT>;
     using InlineDispatcherT = llob::InlineDispatcher<BookRegistryT>;
@@ -103,32 +138,13 @@ int main(int argc, char** argv) {
     llob::OrderEngine<InlineDispatcherT> order_engine(d);
 
     auto t0 = std::chrono::steady_clock::now();
-    if (n_instruments > 1) {
-      /*
-       * submit to all instruments in every event round
-       * array access-pattern is not cache friendly
-       * but it simulates how real-life event submission works
-       */
-      for (std::size_t cmd_i = 0; cmd_i < n_cmds; ++cmd_i) {
-        for (std::uint16_t inst_i = 0; inst_i < n_instruments; ++inst_i) {
-          order_engine.submit(cmds_vec[inst_i][cmd_i]);     
-        }
-      }
-    } else {
-      for (std::size_t cmd_i = 0; cmd_i < n_cmds; ++cmd_i)
-        order_engine.submit(cmds_vec[0][cmd_i]);     
-    }
-
+    submitAllOrdersToEngine(order_engine, n_cmds, cmds_vec, n_instruments); 
     auto t1 = std::chrono::steady_clock::now();
-    double secs = std::chrono::duration<double>(t1-t0).count();
-    std::size_t total_commands = n_instruments * n_cmds;
-    std::size_t commands_per_second = total_commands / secs;
-    std::cout << "Benchmark for Classic Order Engine completed in " 
-      << std::round(secs*pow(10,5))/pow(10,5) << " seconds. " 
-      << "Total operations/sec: " << commands_per_second << "\n";
-    }
+    summarizeRuntime("Single threaded Classic Order Engine", t0, t1, n_cmds, n_instruments);
+  }
 
-  if (which == "node" || which == "all") {
+  if (which == "node_s" || which == "all") {
+    // Single threaded node-based order engine
     using OrderBookT = llob::NodeBasedOrderBook<llob::NodeBasedPriceLevel, 1024>;
     using BookRegistryT = llob::BookRegistry<OrderBookT>;
     using InlineDispatcherT = llob::InlineDispatcher<BookRegistryT>;
@@ -141,30 +157,42 @@ int main(int argc, char** argv) {
     llob::OrderEngine<InlineDispatcherT> order_engine(d);
 
     auto t0 = std::chrono::steady_clock::now();
-    if (n_instruments > 1) {
-      /*
-       * submit to all instruments in every event round
-       * array access-pattern is not cache friendly
-       * but it simulates how real-life event submission works
-       */
-      for (std::size_t cmd_i = 0; cmd_i < n_cmds; ++cmd_i) {
-        for (std::uint16_t inst_i = 0; inst_i < n_instruments; ++inst_i) {
-          order_engine.submit(cmds_vec[inst_i][cmd_i]);     
-        }
-      }
-    } else {
-      for (std::size_t cmd_i = 0; cmd_i < n_cmds; ++cmd_i)
-        order_engine.submit(cmds_vec[0][cmd_i]);     
-    }
-
+    submitAllOrdersToEngine(order_engine, n_cmds, cmds_vec, n_instruments); 
     auto t1 = std::chrono::steady_clock::now();
-    double secs = std::chrono::duration<double>(t1-t0).count();
-    std::size_t total_commands = n_instruments * n_cmds;
-    std::size_t commands_per_second = total_commands / secs;
-    std::cout << "Benchmark for Node Based Order Engine completed in " 
-      << std::round(secs*pow(10,5))/pow(10,5) << " seconds. " 
-      << "Total operations/sec: " << commands_per_second << "\n";
+    summarizeRuntime("Single threaded Node-based Order Engine", t0, t1, n_cmds, n_instruments);
   }
+
+  if (which == "node_m" || which == "all") {
+    using namespace llob;
+    using OrderBookT = NodeBasedOrderBook<NodeBasedPriceLevel, 1024>;
+    using BookRegistryT = BookRegistry<OrderBookT>;
+    using SPSCQueueT = SPSCQueue<OrderCommand, 2048>;
+    using WorkerT = SPSCWorker<BookRegistryT, SPSCQueueT>;
+    using WorkerManagerT = WorkerManager<OrderBookT, WorkerT>;
+    using DispatcherT = ConcurrentDispatcher<WorkerManagerT>;
+
+    // Initialization
+    WorkerManagerT worker_manager(n_workers);
+    
+    // rotate, split evenly
+    for (std::uint16_t i = 0; i < n_instruments; ++i)
+      worker_manager.add(i % n_workers, std::make_unique<OrderBookT>(i));
+
+    DispatcherT dispatcher(worker_manager);
+    dispatcher.start();
+    OrderEngine<DispatcherT> order_engine(dispatcher);
+    
+    // wait for thread to start
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+
+    auto t0 = std::chrono::steady_clock::now();
+    submitAllOrdersToEngine(order_engine, n_cmds, cmds_vec, n_instruments); 
+    dispatcher.stop();
+    auto t1 = std::chrono::steady_clock::now();
+    std::cout << order_engine.report() << "\n";
+    summarizeRuntime("Multi Threaded Node-based Order Engine", t0, t1, n_cmds, n_instruments);
+  }
+
   
   return 0;
 }
