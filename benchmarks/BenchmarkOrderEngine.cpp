@@ -162,6 +162,38 @@ int main(int argc, char** argv) {
     summarizeRuntime("Single threaded Node-based Order Engine", t0, t1, n_cmds, n_instruments);
   }
 
+  if (which == "classic_m" || which == "all") {
+    using namespace llob;
+    using OrderBookT = ClassicOrderBook<ClassicPriceLevel, 1024>;
+    using BookRegistryT = BookRegistry<OrderBookT>;
+    using SPSCQueueT = SPSCQueue<OrderCommand, 2048>;
+    using WorkerT = SPSCWorker<BookRegistryT, SPSCQueueT>;
+    using WorkerManagerT = WorkerManager<OrderBookT, WorkerT>;
+    using DispatcherT = ConcurrentDispatcher<WorkerManagerT>;
+
+    // Initialization
+    WorkerManagerT worker_manager(n_workers);
+    
+    // rotate, split evenly
+    for (std::uint16_t i = 0; i < n_instruments; ++i)
+      worker_manager.add(i % n_workers, std::make_unique<OrderBookT>(i));
+
+    DispatcherT dispatcher(worker_manager);
+    dispatcher.start();
+    OrderEngine<DispatcherT> order_engine(dispatcher);
+    
+    // wait for thread to start
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+
+    auto t0 = std::chrono::steady_clock::now();
+    submitAllOrdersToEngine(order_engine, n_cmds, cmds_vec, n_instruments); 
+    dispatcher.stop();
+    auto t1 = std::chrono::steady_clock::now();
+    summarizeRuntime("Multi Threaded Classic Order Engine", t0, t1, n_cmds, n_instruments);
+    // std::cout << "Report:\n";
+    // std::cout << order_engine.report() << "\n";
+  }
+  
   if (which == "node_m" || which == "all") {
     using namespace llob;
     using OrderBookT = NodeBasedOrderBook<NodeBasedPriceLevel, 1024>;
@@ -189,10 +221,10 @@ int main(int argc, char** argv) {
     submitAllOrdersToEngine(order_engine, n_cmds, cmds_vec, n_instruments); 
     dispatcher.stop();
     auto t1 = std::chrono::steady_clock::now();
-    std::cout << order_engine.report() << "\n";
     summarizeRuntime("Multi Threaded Node-based Order Engine", t0, t1, n_cmds, n_instruments);
+    // std::cout << "Report:\n";
+    // std::cout << order_engine.report() << "\n";
   }
-
   
   return 0;
 }

@@ -21,7 +21,7 @@ class ClassicPriceLevel {
 public:
   using Iterator = std::list<Order*>::iterator;
 
-  explicit ClassicPriceLevel(Price p) : price_(p) {}
+  explicit ClassicPriceLevel() {}
   std::size_t size() const { return orders_.size(); }
   bool empty() const { return orders_.empty(); }
 
@@ -42,7 +42,6 @@ public:
   }
 
 private:
-  Price price_;
   std::list<Order*> orders_;
   std::unordered_map<OrderId, Iterator> order_location_;
 };
@@ -59,9 +58,8 @@ concept InstrusivePriceLevel = requires(T level, OrderNode* o) {
 
 class NodeBasedPriceLevel {
 public:
-  explicit NodeBasedPriceLevel(Price p)
-    : price_(p)
-    , first_node_(nullptr)
+  explicit NodeBasedPriceLevel()
+    : first_node_(nullptr)
     , last_node_(nullptr)
     , num_orders_(0) {}
 
@@ -110,7 +108,6 @@ public:
   }
 
 private:
-  Price price_;
   std::size_t num_orders_;
   OrderNode* first_node_;
   OrderNode* last_node_;

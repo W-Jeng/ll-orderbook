@@ -8,7 +8,7 @@ namespace llob {
 class ClassicPriceLevelTest : public ::testing::Test {
 protected:
   void SetUp() override {
-    level = std::make_unique<ClassicPriceLevel>(1.0);
+    level = std::make_unique<ClassicPriceLevel>();
     order_storage.reserve(1024);
     internal_id = 0;
   }
@@ -91,7 +91,7 @@ TEST_F(ClassicPriceLevelTest, AddAfterEraseAppendsToBack) {
 class NodeBasedPriceLevelTest : public ::testing::Test {
 protected:
   void SetUp() override {
-    level = std::make_unique<NodeBasedPriceLevel>(1.0);
+    level = std::make_unique<NodeBasedPriceLevel>();
     order_storage.reserve(1024);
     internal_id = 0;
   }

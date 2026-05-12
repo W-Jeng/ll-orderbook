@@ -99,7 +99,7 @@ private:
     o->setFrom(nor);
     order_indexer_.insert({o->id, o});
     auto add_to = [](auto& book, Order* order) {
-      auto [it, _] = book.try_emplace(order->price, PriceLevelT(order->price));
+      auto [it, _] = book.try_emplace(order->price, PriceLevelT{});
       it->second.add(order);
     };
 
@@ -272,7 +272,7 @@ private:
     order_node_indexer_[o_node->order.id] = o_node;
     auto add_to = [](auto& book, OrderNode* order_node) {
       auto [it, _] = book.try_emplace(order_node->order.price,
-                                      PriceLevelT(order_node->order.price));
+                                      PriceLevelT{});
       it->second.add(order_node);
     };
 
