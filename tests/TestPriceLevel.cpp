@@ -15,7 +15,7 @@ protected:
 
   Order* makeOrder(OrderId id) {
     Order order{};
-    NewOrderRequest nor(0, Side::Buy, 100.0, 10);
+    NewOrderRequest nor(0, Side::Buy, 100, 10);
     nor.setOrderId(id);
     order.setFrom(nor);
     order_storage.push_back(order);
@@ -98,7 +98,7 @@ protected:
 
   OrderNode* makeOrderNode(OrderId id) {
     Order order{};
-    NewOrderRequest nor(0, Side::Buy, 100.0, 10);
+    NewOrderRequest nor(0, Side::Buy, 100, 10);
     nor.setOrderId(id);
     order.setFrom(nor);
     OrderNode o_node;

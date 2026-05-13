@@ -18,18 +18,13 @@
 
 namespace llob {
 
-Price roundPrice(Price p, int decimal) {
-  double val = std::pow(10, decimal);
-  return std::round(p * val)/val;
-}
-
 std::vector<std::vector<OrderCommand>> makeWorkloadNoMatch(
     std::size_t n_commands,
     std::size_t max_live,
     std::uint32_t seed,
     uint16_t n_instruments) {
-  std::uniform_real_distribution<Price> buy_dist(99.0, 99.99);
-  std::uniform_real_distribution<Price> sell_dist(100.0, 100.99);
+  std::uniform_int_distribution<Price> buy_dist(9900, 9999);
+  std::uniform_int_distribution<Price> sell_dist(10000, 10099);
   std::uniform_int_distribution<Quantity> qty_dist(1, 100);
   std::bernoulli_distribution side_dist(0.5);
   std::bernoulli_distribution is_new(0.5);
@@ -52,7 +47,6 @@ std::vector<std::vector<OrderCommand>> makeWorkloadNoMatch(
       if (submit_new) {
         Side s = side_dist(rng) ? Side::Buy : Side::Sell;
         Price p = (s == Side::Buy) ? buy_dist(rng) : sell_dist(rng);
-        p = roundPrice(p, 2);
         Quantity q = qty_dist(rng);
         NewOrderRequest nor(inst, s, p, q);
         cmds[inst].emplace_back(std::move(nor));

@@ -53,62 +53,62 @@ TYPED_TEST(OrderBookTest, EmptyOnConstruction) {
 
 TYPED_TEST(OrderBookTest, NewBuyOrderUpdatesBestBid) {
   auto& book = this->book;
-  book.process(*this->makeNewOrderCommand(0, Side::Buy, 100.0, 10));
-  EXPECT_EQ(book.bestBid(), 100.0);
-  EXPECT_EQ(book.sizeAtPrice(Side::Buy, 100.0), 1);
+  book.process(*this->makeNewOrderCommand(0, Side::Buy, 100, 10));
+  EXPECT_EQ(book.bestBid(), 100);
+  EXPECT_EQ(book.sizeAtPrice(Side::Buy, 100), 1);
 }
 
 TYPED_TEST(OrderBookTest, MultiplePriceLevelsRanked) {
   auto& book = this->book;
-  book.process(*this->makeNewOrderCommand(0, Side::Buy, 100.0, 10));
-  book.process(*this->makeNewOrderCommand(1, Side::Buy, 101.0, 10));
-  book.process(*this->makeNewOrderCommand(2, Side::Buy, 99.0, 10));
-  book.process(*this->makeNewOrderCommand(3, Side::Buy, 99.0, 20));
-  EXPECT_EQ(book.bestBid(), 101.0);
-  EXPECT_EQ(book.sizeAtPrice(Side::Buy, 99.0), 2);
+  book.process(*this->makeNewOrderCommand(0, Side::Buy, 100, 10));
+  book.process(*this->makeNewOrderCommand(1, Side::Buy, 101, 10));
+  book.process(*this->makeNewOrderCommand(2, Side::Buy, 99, 10));
+  book.process(*this->makeNewOrderCommand(3, Side::Buy, 99, 20));
+  EXPECT_EQ(book.bestBid(), 101);
+  EXPECT_EQ(book.sizeAtPrice(Side::Buy, 99), 2);
   EXPECT_EQ(book.numLevels(Side::Buy), 3);
 }
 
 TYPED_TEST(OrderBookTest, CancelRemovesOrder) {
   auto& book = this->book;
-  book.process(*this->makeNewOrderCommand(0, Side::Buy, 100.0, 10));
+  book.process(*this->makeNewOrderCommand(0, Side::Buy, 100, 10));
   EXPECT_TRUE(book.hasOrder(0));
   
   book.process(*this->makeCancelOrderCommand(0));
   EXPECT_FALSE(book.hasOrder(0));
-  EXPECT_EQ(book.sizeAtPrice(Side::Buy, 100.0), 0);
+  EXPECT_EQ(book.sizeAtPrice(Side::Buy, 100), 0);
 }
 
 TYPED_TEST(OrderBookTest, CancelOneOfManyAtSamePrice) {
   auto& book = this->book;
-  book.process(*this->makeNewOrderCommand(0, Side::Buy, 100.0, 10));
-  book.process(*this->makeNewOrderCommand(1, Side::Buy, 100.0, 20));
+  book.process(*this->makeNewOrderCommand(0, Side::Buy, 100, 10));
+  book.process(*this->makeNewOrderCommand(1, Side::Buy, 100, 20));
   book.process(*this->makeCancelOrderCommand(0));
-  EXPECT_EQ(book.sizeAtPrice(Side::Buy, 100.0), 1);
+  EXPECT_EQ(book.sizeAtPrice(Side::Buy, 100), 1);
   EXPECT_EQ(book.numLevels(Side::Buy), 1);
 }
 
 TYPED_TEST(OrderBookTest, BidsAndAsks) {
   auto& book = this->book;
-  book.process(*this->makeNewOrderCommand(0, Side::Buy, 100.0, 10));
-  book.process(*this->makeNewOrderCommand(1, Side::Sell, 101.0, 20));
-  EXPECT_EQ(book.bestBid(), 100.0);
-  EXPECT_EQ(book.bestAsk(), 101.0);
+  book.process(*this->makeNewOrderCommand(0, Side::Buy, 100, 10));
+  book.process(*this->makeNewOrderCommand(1, Side::Sell, 101, 20));
+  EXPECT_EQ(book.bestBid(), 100);
+  EXPECT_EQ(book.bestAsk(), 101);
 }
 
 TYPED_TEST(OrderBookTest, BidsAndAsksMultipleMatch) {
   auto& book = this->book;
-  book.process(*this->makeNewOrderCommand(0, Side::Buy, 100.0, 20));
-  book.process(*this->makeNewOrderCommand(1, Side::Buy, 101.0, 50));
-  book.process(*this->makeNewOrderCommand(2, Side::Sell, 99.0, 60));
-  EXPECT_EQ(book.bestBid(), 100.0);
+  book.process(*this->makeNewOrderCommand(0, Side::Buy, 100, 20));
+  book.process(*this->makeNewOrderCommand(1, Side::Buy, 101, 50));
+  book.process(*this->makeNewOrderCommand(2, Side::Sell, 99, 60));
+  EXPECT_EQ(book.bestBid(), 100);
   EXPECT_FALSE(book.bestAsk().has_value());
 }
 
 TYPED_TEST(OrderBookTest, BidsAndAsksMultipleMatchAndClear) {
   auto& book = this->book;
-  book.process(*this->makeNewOrderCommand(0, Side::Buy, 100.0, 20));
-  book.process(*this->makeNewOrderCommand(1, Side::Sell, 99.0, 20));
+  book.process(*this->makeNewOrderCommand(0, Side::Buy, 100, 20));
+  book.process(*this->makeNewOrderCommand(1, Side::Sell, 99, 20));
   EXPECT_FALSE(book.bestBid().has_value());
   EXPECT_FALSE(book.bestAsk().has_value());
 }
