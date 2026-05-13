@@ -1,6 +1,8 @@
 #pragma once
 #include <thread>
 #include <string>
+#include <pthread.h>
+#include <sched.h>
 #include "llob/OrderCommand.h"
 #include "llob/BookRegistry.h"
 
@@ -53,10 +55,24 @@ struct alignas(64) SPSCWorker {
   std::string report() {
     return registry.report();
   }
+  
+  void pin_thread() {
+    if (!t.joinable())
+      return;
+
+    cpu_set_t cpuset;
+    CPU_ZERO(&cpuset);
+    CPU_SET((int) worker_id, &cpuset);
+    int rc = pthread_setaffinity_np(t.native_handle(), sizeof(cpu_set_t), &cpuset);
+
+    if (rc != 0)
+      std::cout << "Unable to pin thread to a core\n";
+  }
 
   void start() {
     running.store(true, std::memory_order_release);
     t = std::thread([this] { run(); });
+    pin_thread();
   }
 
   void stop() {
