@@ -8,10 +8,10 @@ namespace llob {
 template<typename PriceLevelT, Side S>
 class PriceArray {
 public:
-  PriceArray(Price mid, Price tick_size, std::size_t N)
+  PriceArray(Price min_price, Price tick_size, std::size_t N)
       : tick_size_(tick_size)
-      , min_price_(mid - (N/2) * tick_size)
-      , max_price_(mid + (N/2-1) * tick_size)
+      , min_price_(min_price)
+      , max_price_(min_price + (N-1) * tick_size)
       , best_idx(INVALID_IDX)
       , num_active_levels_(0)
   {}
@@ -76,12 +76,6 @@ public:
   }
 
 private:
-  void rescanBest() {
-    if (best_idx_ == INVALID_IDX || price_level_[best_idx_].empty()) {
-      
-    }
-  }
-
   std::size_t best_idx_;
   Price min_price_;
   Price max_price_;

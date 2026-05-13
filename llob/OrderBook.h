@@ -13,6 +13,7 @@
 #include "llob/OrderCommand.h"
 #include "llob/PriceLevel.h"
 #include "llob/PoolAllocator.h"
+#include "llob/PriceArray.h"
 
 namespace llob {
 
@@ -429,8 +430,8 @@ public:
 
 private:
   const InstrumentId instrument_id_;
-  boost::container::flat_map<Price, PriceLevelT, std::greater<Price>> bids_;
-  boost::container::flat_map<Price, PriceLevelT, std::less<Price>> asks_;
+  PriceArray<PriceLevelT, Side::Buy> bids_;
+  PriceArray<PriceLevelT, Side::Sell> asks_;
   boost::unordered_flat_map<OrderId, OrderNode*> order_node_indexer_;
   PoolAllocator<OrderNode, PoolSize> order_pool_;
   std::size_t order_cmd_received_ = 0;

@@ -1,0 +1,15 @@
+#pragma once 
+#include <new>
+#include <atomic>
+
+namespace llob {
+
+
+template<typename T, std::size_t N>
+class SPSCQueue2 {
+  static_assert((N & (N-1)) == 0, "N must be power of 2");
+  static_assert(N > 1, "N must be more than 1")
+
+};
+
+} // namespace llob
