@@ -5,6 +5,7 @@
 #include <iostream>
 #include <boost/unordered/unordered_flat_map.hpp>
 #include "llob/Order.h"
+#include "llob/PoolAllocator.h"
 
 namespace llob {
 
@@ -111,6 +112,59 @@ private:
   std::size_t num_orders_;
   OrderNode* first_node_;
   OrderNode* last_node_;
+};
+
+// Use pool allocator for each price level
+template<std::size_t PoolSize>
+class DensePriceLevel {
+public:
+  DensePriceLevel()
+    : order_node_pool_(PoolAllocator<OrderNode, PoolSize>())
+    , first_node_(order_node_pool_.allocate())
+    , last_node_(order_node_pool_.allocate())
+    , num_orders_(0) 
+  {
+    // always pointing to a valid node makes it easier
+    first_node_->next = last_node_;
+    last_node_->prev = first_node_;
+  }
+
+  std::size_t size() const { return num_orders_; }
+  bool empty() const { return num_orders_ == 0; }
+  
+  [[nodiscard]] OrderNode* add(const NewOrderRequest& nor) {
+    OrderNode* o = order_node_pool_.allocate();
+    
+    if (!o) [[unlikely]]
+      throw std::runtime_error("Order pool exhausted! Last nor="+nor.toString());
+
+    o->order.setFrom(nor);
+    OrderNode* temp = last_node->prev;
+    o->next = last_node_;
+    last_node_->prev = o;
+    temp->next = o;
+    ++num_orders_;
+    return o;
+  }
+
+  void erase(OrderNode* o) {
+    OrderNode* front = o->prev;
+    OrderNode* back = o->next;
+    front->next = back;
+    back->prev = front;
+    order_node_pool_.release(o);
+    --num_orders_;
+  } 
+
+  OrderNode* front() const {
+    return first_node_->next;
+  }
+
+private:
+  PoolAllocator<OrderNode, PoolSize> order_node_pool_;
+  OrderNode* first_node_;
+  OrderNode* last_node_;
+  std::size_t num_orders_;
 };
 
 } // namespace llob

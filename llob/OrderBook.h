@@ -374,7 +374,7 @@ private:
   }
 };
 
-template<InstrusivePriceLevel PriceLevelT, size_t PoolSize>
+template<size_t PoolSize>
 class ArrayInstrusiveOrderBook {
 public:
   explicit ArrayInstrusiveOrderBook(InstrumentId id)
@@ -433,28 +433,20 @@ private:
   PriceArray<PriceLevelT, Side::Buy> bids_;
   PriceArray<PriceLevelT, Side::Sell> asks_;
   boost::unordered_flat_map<OrderId, OrderNode*> order_node_indexer_;
-  PoolAllocator<OrderNode, PoolSize> order_pool_;
   std::size_t order_cmd_received_ = 0;
 
   void processNewOrder(const NewOrderRequest& nor) {
-    OrderNode* o_node = order_pool_.allocate();
-
-    if (!o_node) 
-      throw std::runtime_error("Order pool exhausted! Last nor="+nor.toString());
-
-    o_node->order.setFrom(nor);
-    order_node_indexer_[o_node->order.id] = o_node;
-    auto add_to = [](auto& book, OrderNode* order_node) {
-      auto [it, _] = book.try_emplace(order_node->order.price,
-                                      PriceLevelT{});
-      it->second.add(order_node);
+    auto add_to = [this](auto& parray, const NewOrderRequest& nor) {
+      PriceLevelT& plevel = parray.get(nor.price);
+      OrderNode* o = pevel.add(nor);
+      order_node_indexer_.emplace(nor.order_id, o);
     };
 
-    if (o_node->order.side == Side::Buy)
-      add_to(bids_, o_node);
-    else
-      add_to(asks_, o_node);
-
+    if (nor.side == Side::Buy)
+      add_to(bids_, nor);
+    else 
+      add_to(asks_, nor);
+    
     tryMatchOrders();
   }
 
@@ -465,7 +457,7 @@ private:
       return;
 
     auto* o_node = it -> second;
-    auto cancel_from = [](auto& book, OrderNode* order_node) {
+    auto cancel_from = [](auto& parray, OrderNode* order_node) {
       auto price_level_it = book.find(order_node->order.price);
       
       if (price_level_it == book.end())

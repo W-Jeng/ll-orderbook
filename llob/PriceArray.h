@@ -75,12 +75,16 @@ public:
     return min_price_ + i * tick_size_;
   }
 
+  PriceLevelT& get(Price p) const {
+    return price_levels_[index(p)];
+  }
+
 private:
   std::size_t best_idx_;
   Price min_price_;
   Price max_price_;
   Price tick_size_;
-  std::vector<PriceLevel> price_levels_;
+  std::vector<PriceLevelT> price_levels_;
   static constexpr std::size_t INVALID_IDX = std::numeric_limits<std::size_t>::max();
 };
 
