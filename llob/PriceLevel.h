@@ -139,10 +139,11 @@ public:
       throw std::runtime_error("Order pool exhausted! Last nor="+nor.toString());
 
     o->order.setFrom(nor);
-    OrderNode* temp = last_node->prev;
+    OrderNode* temp = last_node_->prev;
     o->next = last_node_;
     last_node_->prev = o;
     temp->next = o;
+    o->prev = temp;
     ++num_orders_;
     return o;
   }

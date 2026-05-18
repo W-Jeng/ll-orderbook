@@ -1,7 +1,9 @@
 #pragma once
 #include <limits>
+#include <optional>
 #include "llob/Types.h"
 #include "llob/PriceLevel.h"
+#include "llob/Order.h"
 
 namespace llob {
 
@@ -12,19 +14,27 @@ public:
       : tick_size_(tick_size)
       , min_price_(min_price)
       , max_price_(min_price + (N-1) * tick_size)
-      , best_idx(INVALID_IDX)
+      , best_idx_(INVALID_IDX)
       , num_active_levels_(0)
-  {}
+      , price_levels_(N)
+  { }
 
-  Price best() const {
-    return priceAt(best_idx_);
+  std::optional<Price> best() const {
+    if (best_idx_ == INVALID_IDX) [[unlikely]]
+      return std::nullopt;
+
+    return std::optional<Price>(priceAt(best_idx_));
+  }
+
+  std::optional<std::size_t> bestIndex() const {
+    return (best_idx_==INVALID_IDX) ? std::nullopt : std::optional<std::size_t>(best_idx_);
   }
 
   PriceLevelT& bestPriceLevel() {
-    return price_level_[best_idx_];
+    return price_levels_[best_idx_];
   }
 
-  void updateBestOnInsertIdx(std::size_t idx) {
+  void updateBestOnInsert(std::size_t idx) {
     if constexpr (S == Side::Buy) {
       if (idx > best_idx_ || best_idx_ == INVALID_IDX)
         best_idx_ = idx;
@@ -34,31 +44,34 @@ public:
     }
   }
 
-  void updateBestOnEmptyIdx(std::size_t idx) {
+  void updateBestOnErase(std::size_t idx) {
     // does not influence best levels
     if (idx != best_idx_)
+      return;
+
+    if (!price_levels_[idx].empty())
       return;
 
     if constexpr (S == Side::Buy) {
       // scan down
       while (best_idx_ > 0) {
         --best_idx_;
-        if (!price_level_[best_idx_].empty())
+        if (!price_levels_[best_idx_].empty())
           return;
       }
 
-      if (price_level_[0].empty())
+      if (price_levels_[0].empty())
         best_idx_ = INVALID_IDX;
     } else {
       // scan up
       ++best_idx_;
-      while (best_idx_ < price_level_.size()) {
-        if (!price_level_[best_idx_].empty())
+      while (best_idx_ < price_levels_.size()) {
+        if (!price_levels_[best_idx_].empty())
           return;
         ++best_idx_;
       }
 
-      if (best_idx_ == price_level_.size())
+      if (best_idx_ == price_levels_.size())
         best_idx_ = INVALID_IDX;
     }
   }
@@ -75,8 +88,12 @@ public:
     return min_price_ + i * tick_size_;
   }
 
-  PriceLevelT& get(Price p) const {
+  PriceLevelT& getOnPrice(Price p) {
     return price_levels_[index(p)];
+  }
+
+  PriceLevelT& getOnIndex(std::size_t idx) {
+    return price_levels_[idx];
   }
 
 private:
@@ -85,6 +102,7 @@ private:
   Price max_price_;
   Price tick_size_;
   std::vector<PriceLevelT> price_levels_;
+  std::size_t num_active_levels_;
   static constexpr std::size_t INVALID_IDX = std::numeric_limits<std::size_t>::max();
 };
 

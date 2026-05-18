@@ -377,8 +377,12 @@ private:
 template<size_t PoolSize>
 class ArrayInstrusiveOrderBook {
 public:
-  explicit ArrayInstrusiveOrderBook(InstrumentId id)
-      : instrument_id_(id) { }
+  explicit ArrayInstrusiveOrderBook(InstrumentId id, Price min_p,
+      Price tick_size, std::size_t num_levels)
+    : instrument_id_(id)
+    , bids_(PriceArray<DensePriceLevel<PoolSize>, Side::Buy>{min_p, tick_size, num_levels})
+    , asks_(PriceArray<DensePriceLevel<PoolSize>, Side::Sell>{min_p, tick_size, num_levels})
+    {}
 
   void process(const OrderCommand& command) {
     ++order_cmd_received_;
@@ -430,16 +434,18 @@ public:
 
 private:
   const InstrumentId instrument_id_;
-  PriceArray<PriceLevelT, Side::Buy> bids_;
-  PriceArray<PriceLevelT, Side::Sell> asks_;
+  PriceArray<DensePriceLevel<PoolSize>, Side::Buy> bids_;
+  PriceArray<DensePriceLevel<PoolSize>, Side::Sell> asks_;
   boost::unordered_flat_map<OrderId, OrderNode*> order_node_indexer_;
   std::size_t order_cmd_received_ = 0;
 
   void processNewOrder(const NewOrderRequest& nor) {
     auto add_to = [this](auto& parray, const NewOrderRequest& nor) {
-      PriceLevelT& plevel = parray.get(nor.price);
-      OrderNode* o = pevel.add(nor);
-      order_node_indexer_.emplace(nor.order_id, o);
+      std::size_t price_index = parray.index(nor.price);
+      auto& plevel = parray.getOnIndex(price_index);
+      OrderNode* o = plevel.add(nor);
+      order_node_indexer_.emplace(nor.allocated_order_id, o);
+      parray.updateBestOnInsert(price_index);
     };
 
     if (nor.side == Side::Buy)
@@ -456,26 +462,20 @@ private:
     if (it == order_node_indexer_.end())
       return;
 
-    auto* o_node = it -> second;
+    auto* o_node = it->second;
     auto cancel_from = [](auto& parray, OrderNode* order_node) {
-      auto price_level_it = book.find(order_node->order.price);
-      
-      if (price_level_it == book.end())
-        return;
-
-      price_level_it->second.erase(order_node);
-
-      if (price_level_it->second.empty()) 
-        book.erase(price_level_it);
+      std::size_t price_index = parray.index(order_node->order.price);
+      auto& plevel = parray.getOnIndex(price_index);
+      plevel.erase(order_node);
+      parray.updateBestOnErase(price_index);
     };
 
     if (o_node->order.side == Side::Buy)
       cancel_from(bids_, o_node);
     else
       cancel_from(asks_, o_node);
-
+    
     order_node_indexer_.erase(it);
-    order_pool_.release(o_node);
   }
 
   void tryMatchOrders() {
@@ -487,54 +487,34 @@ private:
       ask_o_node->order.fillQty(to_fill_qty);
     };
 
-    auto popOrderIfFullyFilled = [](PriceLevelT& plevel, OrderNode* o_node) {
+    auto popOrderIfFullyFilled = [&](auto& parray, std::size_t potential_erase_idx, 
+        auto& plevel, OrderNode* o_node) {
       if (!o_node->order.isFullyFilled())
         return;
-
+      
       plevel.erase(o_node);
-    };
-
-    auto popPriceLevelIfEmpty = [](auto& plevel_map) {
-      auto best_plevel = plevel_map.begin();
-
-      if (best_plevel->second.empty())
-        plevel_map.erase(best_plevel);
-    };
-
-    auto releaseIfFilled = [&](OrderNode* o_node) {
-      if (!o_node->order.isFullyFilled())
-        return;
-
+      parray.updateBestOnErase(potential_erase_idx);
       order_node_indexer_.erase(o_node->order.id);
-      order_pool_.release(o_node);
     };
 
     while (true) {
-      if (bids_.empty() || asks_.empty())
+      std::optional<std::size_t> best_bid_index = bids_.bestIndex();
+      std::optional<std::size_t> best_ask_index = asks_.bestIndex();
+
+      if (!best_bid_index || !best_ask_index)
         return;
       
-      auto bbid_plevel = bids_.begin();
-      auto bask_plevel = asks_.begin();
-
-      if (bbid_plevel->first < bask_plevel->first)
+      // index is comparable!
+      if (*best_bid_index < *best_ask_index)
         return;
-
-      // match happens here
-      auto bbid_o_node = bbid_plevel->second.front();
-      auto bask_o_node = bask_plevel->second.front();
-      match(bbid_o_node, bask_o_node);
-
-      // remove from price level, if fully filled
-      popOrderIfFullyFilled(bbid_plevel->second, bbid_o_node);
-      popOrderIfFullyFilled(bask_plevel->second, bask_o_node);
       
-      // remove top level if empty
-      popPriceLevelIfEmpty(bids_);
-      popPriceLevelIfEmpty(asks_);
-
-      // release usage
-      releaseIfFilled(bbid_o_node);
-      releaseIfFilled(bask_o_node);
+      auto& best_bid_plevel = bids_.bestPriceLevel();
+      auto& best_ask_plevel = asks_.bestPriceLevel();
+      OrderNode* best_bid_o_node = best_bid_plevel.front();
+      OrderNode* best_ask_o_node = best_ask_plevel.front();
+      match(best_bid_o_node, best_ask_o_node);
+      popOrderIfFullyFilled(bids_, *best_bid_index, best_bid_plevel, best_bid_o_node);
+      popOrderIfFullyFilled(asks_, *best_ask_index, best_ask_plevel, best_ask_o_node);
     }
   }
 };
