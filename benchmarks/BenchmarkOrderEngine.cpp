@@ -100,7 +100,7 @@ int main(int argc, char** argv) {
   /*
    * Args:
    *  1) which: OrderEngine algorithm (classic or node) and (single or multithreaded)
-   *  2) n_cmds: num of commands per instrument
+   *  2) n_cmds: num of commands in total
    *  3) live: how many events an order can live through
    *  4) n_instruments: how many instruments we are distributing to
    *  5) n_workers: only for multithreaded usage
@@ -115,7 +115,9 @@ int main(int argc, char** argv) {
 
   if (live >= 1024)
     throw std::runtime_error("Order cannot live through more than 1024 events");
-
+  
+  // force almost the same commands each
+  // n_cmds = n_cmds/n_instruments;
   auto cmds_vec = llob::makeWorkloadNoMatch(n_cmds, live, seed, n_instruments);
 
   if (which == "classic_s" || which == "all") {
@@ -218,6 +220,36 @@ int main(int argc, char** argv) {
     summarizeRuntime("Multi Threaded Node-based Order Engine", t0, t1, n_cmds, n_instruments);
     // std::cout << "Report:\n";
     // std::cout << order_engine.report() << "\n";
+  }
+
+  if (which == "ai_m" || which == "all") {
+    using namespace llob;
+    using OrderBookT = ArrayInstrusiveOrderBook<256>;
+    using BookRegistryT = BookRegistry<OrderBookT>;
+    using SPSCQueueT = SPSCQueue<OrderCommand, 2048>;
+    using WorkerT = SPSCWorker<BookRegistryT, SPSCQueueT>;
+    using WorkerManagerT = WorkerManager<OrderBookT, WorkerT>;
+    using DispatcherT = ConcurrentDispatcher<WorkerManagerT>;
+
+    // Initialization
+    WorkerManagerT worker_manager(n_workers);
+    
+    // rotate, split evenly
+    for (std::uint16_t i = 0; i < n_instruments; ++i)
+      worker_manager.add(i % n_workers, std::make_unique<OrderBookT>(i, 9500, 1, 1024));
+
+    DispatcherT dispatcher(worker_manager);
+    dispatcher.start();
+    OrderEngine<DispatcherT> order_engine(dispatcher);
+    
+    // wait for thread to start
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+
+    auto t0 = std::chrono::steady_clock::now();
+    submitAllOrdersToEngine(order_engine, n_cmds, cmds_vec, n_instruments); 
+    dispatcher.stop();
+    auto t1 = std::chrono::steady_clock::now();
+    summarizeRuntime("Multi Threaded Array-Instrusive Order Engine", t0, t1, n_cmds, n_instruments);
   }
   
   return 0;

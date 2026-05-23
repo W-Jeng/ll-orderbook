@@ -26,7 +26,7 @@ int main() {
   OrderCommand cmd_buy(std::move(nor_buy));
   order_engine.submit(cmd_buy);
 
-  NewOrderRequest nor_sell(0, Side::Sell, 100, 100);
+  NewOrderRequest nor_sell(0, Side::Sell, 101, 100);
   OrderCommand cmd_sell(std::move(nor_sell));
   order_engine.submit(cmd_sell);
 

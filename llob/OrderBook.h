@@ -378,10 +378,10 @@ template<size_t PoolSize>
 class ArrayInstrusiveOrderBook {
 public:
   explicit ArrayInstrusiveOrderBook(InstrumentId id, Price min_p,
-      Price tick_size, std::size_t num_levels)
+      Price tick_size, std::size_t num_price_levels)
     : instrument_id_(id)
-    , bids_(PriceArray<DensePriceLevel<PoolSize>, Side::Buy>{min_p, tick_size, num_levels})
-    , asks_(PriceArray<DensePriceLevel<PoolSize>, Side::Sell>{min_p, tick_size, num_levels})
+    , bids_(PriceArray<DensePriceLevel<PoolSize>, Side::Buy>{min_p, tick_size, num_price_levels})
+    , asks_(PriceArray<DensePriceLevel<PoolSize>, Side::Sell>{min_p, tick_size, num_price_levels})
     {}
 
   void process(const OrderCommand& command) {

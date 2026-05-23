@@ -8,10 +8,22 @@
 namespace llob {
 
 template<typename BookT>
+struct BookFactory {
+  static BookT make() { return BookT(0); }
+};
+
+template<size_t PoolSize>
+struct BookFactory<ArrayIntrusiveOrderBook<PoolSize>> {
+  static ArrayIntrusiveOrderBook<PoolSize> make() {
+    return ArrayIntrusiveOrderBook<PoolSize>(0, 0, 1, 1024);
+  }
+};
+
+template<typename BookT>
 class OrderBookTest : public ::testing::Test {
 protected:
   OrderBookTest()
-    : book(0) {}
+    : book(BookFactory<BookT>::make()) {}
 
   void SetUp() override {
     order_cmd_storage.reserve(1024);
@@ -39,6 +51,7 @@ protected:
 using BookTypes = ::testing::Types<
   ClassicOrderBook<ClassicPriceLevel, 1024>,
   NodeBasedOrderBook<NodeBasedPriceLevel, 1024>
+  ArrayInstrusiveOrderBook<1024>
 >;
 
 TYPED_TEST_SUITE(OrderBookTest, BookTypes);

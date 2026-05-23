@@ -173,4 +173,84 @@ TEST_F(NodeBasedPriceLevelTest, AddAfterEraseAppendsToBack) {
   EXPECT_EQ(level->front()->order.id, 2);
 }
 
+class DensePriceLevelTest : public ::testing::Test {
+protected:
+  void SetUp() override {
+    DensePriceLevel<1024> level;
+    internal_id = 0;
+  }
+
+  NewOrderRequest makeNewOrderRequest(OrderId id) {
+    NewOrderRequest nor(0, Side::Buy, 100, 10);
+    nor.setOrderId(id);
+    return nor;
+  }
+
+  void addOrders(int n) {
+    for (int i = 0; i < n; ++i) {
+      OrderNode* o = level.add(makeNewOrderRequest(internal_id+i));
+      order_storage.push_back(o);
+    }
+  }
+
+  DensePriceLevel<1024> level;
+  std::vector<OrderNode*> order_storage;
+  std::size_t internal_id;
+};
+
+TEST_F(DensePriceLevelTest, EmptyOnConsutrction) {
+  EXPECT_EQ(level.size(), 0);
+  EXPECT_TRUE(level.empty());
+}
+
+TEST_F(DensePriceLevelTest, AddOrders) {
+  addOrders(3);
+  EXPECT_EQ(level.size(), 3);
+  EXPECT_FALSE(level.empty());
+  EXPECT_EQ(level.front()->order.id, 0);
+}
+
+TEST_F(DensePriceLevelTest, EraseFrontOrders) {
+  addOrders(3);
+  level.erase(order_storage[0]);
+  EXPECT_EQ(level.size(), 2);
+  EXPECT_EQ(level.front()->order.id, 1);
+}
+
+TEST_F(DensePriceLevelTest, EraseMiddleOrders) {
+  addOrders(3);
+  level.erase(order_storage[1]);
+  EXPECT_EQ(level.size(), 2);
+  EXPECT_EQ(level.front()->order.id, 0);
+}
+
+TEST_F(DensePriceLevelTest, EraseLastOrders) {
+  addOrders(3);
+  level.erase(order_storage[2]);
+  EXPECT_EQ(level.size(), 2);
+  EXPECT_EQ(level.front()->order.id, 0);
+}
+
+TEST_F(DensePriceLevelTest, EraseAllOrders) {
+  addOrders(3);
+  level.erase(order_storage[0]);
+  level.erase(order_storage[1]);
+  level.erase(order_storage[2]);
+  EXPECT_EQ(level.size(), 0);
+  EXPECT_TRUE(level.empty());
+  EXPECT_EQ(level.front(), nullptr);
+}
+
+TEST_F(DensePriceLevelTest, AddAfterEraseAppendsToBack) {
+  addOrders(2);
+  level.erase(order_storage[0]);
+  OrderNode* o = level.add(makeNewOrderRequest(2));
+  EXPECT_EQ(level.size(), 2);
+  EXPECT_FALSE(level.empty());
+  EXPECT_EQ(level.front()->order.id, 1);
+  level.erase(order_storage[1]);
+  EXPECT_EQ(level.size(), 1);
+  EXPECT_FALSE(level.empty());
+  EXPECT_EQ(level.front()->order.id, 2);
+}
 } // namespace llob

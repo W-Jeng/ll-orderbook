@@ -158,7 +158,8 @@ public:
   } 
 
   OrderNode* front() const {
-    return first_node_->next;
+    OrderNode* o = first_node_->next;
+    return o == last_node_? nullptr : o;
   }
 
 private:
