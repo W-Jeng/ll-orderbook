@@ -97,6 +97,11 @@ void summarizeRuntime(const std::string& name, auto& start, auto& end,
 }
 
 int main(int argc, char** argv) {
+  cpu_set_t cpuset;
+  CPU_ZERO(&cpuset);
+  CPU_SET(10, &cpuset);
+  pthread_setaffinity_np(pthread_self(), sizeof(cpuset), &cpuset);
+
   /*
    * Args:
    *  1) which: OrderEngine algorithm (classic or node) and (single or multithreaded)
@@ -115,7 +120,7 @@ int main(int argc, char** argv) {
 
   if (live >= 1024)
     throw std::runtime_error("Order cannot live through more than 1024 events");
-  
+
   // force almost the same commands each
   // n_cmds = n_cmds/n_instruments;
   auto cmds_vec = llob::makeWorkloadNoMatch(n_cmds, live, seed, n_instruments);
@@ -157,7 +162,7 @@ int main(int argc, char** argv) {
     auto t1 = std::chrono::steady_clock::now();
     summarizeRuntime("Single threaded Node-based Order Engine", t0, t1, n_cmds, n_instruments);
   }
-  /*
+
   if (which == "array_s" || which == "all") {
     // Single threaded node-based order engine
     using namespace llob;
@@ -177,7 +182,6 @@ int main(int argc, char** argv) {
     auto t1 = std::chrono::steady_clock::now();
     summarizeRuntime("Single threaded Array Intrusive Order Engine", t0, t1, n_cmds, n_instruments);
   }
-  */
 
   if (which == "classic_m" || which == "all") {
     using namespace llob;
@@ -242,7 +246,7 @@ int main(int argc, char** argv) {
     // std::cout << "Report:\n";
     // std::cout << order_engine.report() << "\n";
   }
-  /*
+
   if (which == "array_m" || which == "all") {
     using namespace llob;
     using OrderBookT = ArrayIntrusiveOrderBook<256>;
@@ -272,7 +276,6 @@ int main(int argc, char** argv) {
     auto t1 = std::chrono::steady_clock::now();
     summarizeRuntime("Multi Threaded Array-Intrusive Order Engine", t0, t1, n_cmds, n_instruments);
   }
-  */
   
   return 0;
 }

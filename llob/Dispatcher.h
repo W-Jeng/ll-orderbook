@@ -62,7 +62,7 @@ struct alignas(64) SPSCWorker {
 
     cpu_set_t cpuset;
     CPU_ZERO(&cpuset);
-    CPU_SET((int) worker_id, &cpuset);
+    CPU_SET((int)(worker_id * 2), &cpuset); 
     int rc = pthread_setaffinity_np(t.native_handle(), sizeof(cpu_set_t), &cpuset);
 
     if (rc != 0)
