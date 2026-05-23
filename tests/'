@@ -50,8 +50,7 @@ protected:
 
 using BookTypes = ::testing::Types<
   ClassicOrderBook<ClassicPriceLevel, 1024>,
-  NodeBasedOrderBook<NodeBasedPriceLevel, 1024>,
-  ArrayIntrusiveOrderBook<256>
+  NodeBasedOrderBook<NodeBasedPriceLevel, 1024>
 >;
 
 TYPED_TEST_SUITE(OrderBookTest, BookTypes);

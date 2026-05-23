@@ -157,6 +157,27 @@ int main(int argc, char** argv) {
     auto t1 = std::chrono::steady_clock::now();
     summarizeRuntime("Single threaded Node-based Order Engine", t0, t1, n_cmds, n_instruments);
   }
+  /*
+  if (which == "array_s" || which == "all") {
+    // Single threaded node-based order engine
+    using namespace llob;
+    using OrderBookT = ArrayIntrusiveOrderBook<256>;
+    using BookRegistryT = BookRegistry<OrderBookT>;
+    using InlineDispatcherT = InlineDispatcher<BookRegistryT>;
+    BookRegistryT book_registry;
+
+    for (std::uint16_t i = 0; i < n_instruments; ++i)
+      book_registry.add(std::make_unique<OrderBookT>(i, 9500, 1, 1024));
+
+    InlineDispatcherT d(book_registry);
+    llob::OrderEngine<InlineDispatcherT> order_engine(d);
+
+    auto t0 = std::chrono::steady_clock::now();
+    submitAllOrdersToEngine(order_engine, n_cmds, cmds_vec, n_instruments); 
+    auto t1 = std::chrono::steady_clock::now();
+    summarizeRuntime("Single threaded Array Intrusive Order Engine", t0, t1, n_cmds, n_instruments);
+  }
+  */
 
   if (which == "classic_m" || which == "all") {
     using namespace llob;
@@ -221,10 +242,10 @@ int main(int argc, char** argv) {
     // std::cout << "Report:\n";
     // std::cout << order_engine.report() << "\n";
   }
-
-  if (which == "ai_m" || which == "all") {
+  /*
+  if (which == "array_m" || which == "all") {
     using namespace llob;
-    using OrderBookT = ArrayInstrusiveOrderBook<256>;
+    using OrderBookT = ArrayIntrusiveOrderBook<256>;
     using BookRegistryT = BookRegistry<OrderBookT>;
     using SPSCQueueT = SPSCQueue<OrderCommand, 2048>;
     using WorkerT = SPSCWorker<BookRegistryT, SPSCQueueT>;
@@ -249,8 +270,9 @@ int main(int argc, char** argv) {
     submitAllOrdersToEngine(order_engine, n_cmds, cmds_vec, n_instruments); 
     dispatcher.stop();
     auto t1 = std::chrono::steady_clock::now();
-    summarizeRuntime("Multi Threaded Array-Instrusive Order Engine", t0, t1, n_cmds, n_instruments);
+    summarizeRuntime("Multi Threaded Array-Intrusive Order Engine", t0, t1, n_cmds, n_instruments);
   }
+  */
   
   return 0;
 }

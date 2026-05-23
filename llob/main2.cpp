@@ -10,7 +10,7 @@
 int main() {
   fmt::println("Hello world!");
   using namespace llob;
-  using OrderBookT = ArrayInstrusiveOrderBook<256>;
+  using OrderBookT = ArrayIntrusiveOrderBook<256>;
   using BookRegistryT = BookRegistry<OrderBookT>;
   using InlineDispatcherT = InlineDispatcher<BookRegistryT>;
 

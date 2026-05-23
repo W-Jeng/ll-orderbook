@@ -375,9 +375,9 @@ private:
 };
 
 template<size_t PoolSize>
-class ArrayInstrusiveOrderBook {
+class ArrayIntrusiveOrderBook {
 public:
-  explicit ArrayInstrusiveOrderBook(InstrumentId id, Price min_p,
+  explicit ArrayIntrusiveOrderBook(InstrumentId id, Price min_p,
       Price tick_size, std::size_t num_price_levels)
     : instrument_id_(id)
     , bids_(PriceArray<DensePriceLevel<PoolSize>, Side::Buy>{min_p, tick_size, num_price_levels})
@@ -403,17 +403,16 @@ public:
   }
 
   std::optional<Price> bestBid() const {
-    return bids_.empty() ? std::nullopt : std::optional{bids_.begin()->first};
+    return bids_.best();
   }
 
   std::optional<Price> bestAsk() const {
-    return asks_.empty() ? std::nullopt : std::optional{asks_.begin()->first};
+    return asks_.best();
   }
 
   template<typename Book>
-  static std::size_t sizeAtPriceImpl(const Book& book, Price p) {
-    auto it = book.find(p);
-    return (it == book.end()) ? 0 : it->second.size();
+  std::size_t sizeAtPriceImpl(const Book& book, Price p) const {
+    return book.getPriceLevelSize(p);
   }
 
   std::size_t sizeAtPrice(Side side, Price p) const {

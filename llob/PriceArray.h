@@ -34,7 +34,14 @@ public:
     return price_levels_[best_idx_];
   }
 
+  std::size_t size() const {
+    return num_active_levels_;
+  }
+
   void updateBestOnInsert(std::size_t idx) {
+    if (price_levels_[idx].size() == 1)
+      ++num_active_levels_;
+
     if constexpr (S == Side::Buy) {
       if (idx > best_idx_ || best_idx_ == INVALID_IDX)
         best_idx_ = idx;
@@ -45,6 +52,10 @@ public:
   }
 
   void updateBestOnErase(std::size_t idx) {
+
+    if (price_levels_[idx].empty())
+      --num_active_levels_;
+
     // does not influence best levels
     if (idx != best_idx_)
       return;
@@ -94,6 +105,10 @@ public:
 
   PriceLevelT& getOnIndex(std::size_t idx) {
     return price_levels_[idx];
+  }
+
+  std::size_t getPriceLevelSize(Price p) const {
+    return price_levels_[index(p)].size();
   }
 
 private:
