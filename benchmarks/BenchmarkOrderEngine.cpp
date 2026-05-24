@@ -23,8 +23,8 @@ std::vector<std::vector<OrderCommand>> makeWorkloadNoMatch(
     std::size_t max_live,
     std::uint32_t seed,
     uint16_t n_instruments) {
-  std::uniform_int_distribution<Price> buy_dist(9900, 9999);
-  std::uniform_int_distribution<Price> sell_dist(10000, 10099);
+  std::uniform_int_distribution<Price> buy_dist(9900, 10010);
+  std::uniform_int_distribution<Price> sell_dist(9990, 10099);
   std::uniform_int_distribution<Quantity> qty_dist(1, 100);
   std::bernoulli_distribution side_dist(0.5);
   std::bernoulli_distribution is_new(0.5);
@@ -251,7 +251,7 @@ int main(int argc, char** argv) {
     using namespace llob;
     using OrderBookT = ArrayIntrusiveOrderBook<256>;
     using BookRegistryT = BookRegistry<OrderBookT>;
-    using SPSCQueueT = SPSCQueue<OrderCommand, 2048>;
+    using SPSCQueueT = SPSCQueue<OrderCommand, 65536>;
     using WorkerT = SPSCWorker<BookRegistryT, SPSCQueueT>;
     using WorkerManagerT = WorkerManager<OrderBookT, WorkerT>;
     using DispatcherT = ConcurrentDispatcher<WorkerManagerT>;

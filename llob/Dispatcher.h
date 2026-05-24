@@ -42,14 +42,17 @@ struct alignas(64) SPSCWorker {
   uint8_t worker_id;
   std::thread t;
   std::atomic<bool> running{true};
+  char pad_[64 - sizeof(std::atomic<bool>)];
 
   SPSCWorker(uint8_t w_id)
     : registry(BookRegistryT{})
     , worker_id(w_id) {}
   
   void submit(const OrderCommand& cmd) {
-    while (!command_q.push(cmd))
+    while (!command_q.push(cmd)) {
+      __builtin_ia32_pause();
       continue;
+    }
   }
   
   std::string report() {
@@ -85,7 +88,12 @@ struct alignas(64) SPSCWorker {
     while (running.load(std::memory_order_acquire)) {
       while (true) {
         OrderCommand* cmd = command_q.front();
-        if (!cmd) break;
+
+        if (!cmd) {
+          __builtin_ia32_pause();
+          break;
+        }
+        
         auto instrument_id = (cmd->type == CommandType::New)
              ? cmd->new_order_request.instrument_id 
              : cmd->order_cancel_request.instrument_id;

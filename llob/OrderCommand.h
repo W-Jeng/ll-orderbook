@@ -13,7 +13,7 @@ enum class CommandType : uint8_t {
 /*
  * Only for performance's sake, can consider std::variant
  */
-struct alignas(64) OrderCommand {
+struct OrderCommand {
   CommandType type;
   union {
     NewOrderRequest new_order_request;
